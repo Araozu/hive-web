@@ -1,1 +1,3 @@
 - use pnpm
+- use shadcn, no raw css
+- dont put classes in shadcn components, unless told to
