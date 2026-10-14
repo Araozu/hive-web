@@ -4,4 +4,3 @@
 - run formatting
 - phosphor icons: import as regular modules: `import { CubeIcon, HeartIcon, HorseIcon } from "phosphor-svelte";`
 - phosphor icons: always use icons ending in `Icon`
-

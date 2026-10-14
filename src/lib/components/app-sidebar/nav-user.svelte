@@ -1,11 +1,19 @@
 <script lang="ts">
-    import { BellIcon, CaretUpDownIcon, CreditCardIcon, SealCheckIcon, SignOutIcon, SparkleIcon } from "phosphor-svelte";
+    import {
+        BellIcon,
+        CaretUpDownIcon,
+        CreditCardIcon,
+        SealCheckIcon,
+        SignOutIcon,
+        SparkleIcon,
+    } from "phosphor-svelte";
     import * as Avatar from "#lib/components/ui/avatar/index.js";
     import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
     import * as Sidebar from "#lib/components/ui/sidebar/index.js";
     import { useSidebar } from "#lib/components/ui/sidebar/index.js";
+    import type { User } from "./data.js";
 
-    let { user }: { user: { name: string; email: string; avatar: string } } = $props();
+    let { user }: { user: User } = $props();
 
     const sidebar = useSidebar();
 </script>
@@ -28,7 +36,7 @@
                             <span class="truncate font-medium">{user.name}</span>
                             <span class="truncate text-xs">{user.email}</span>
                         </div>
-                        <ChevronsUpDownIcon class="ms-auto size-4" />
+                        <CaretUpDownIcon class="ms-auto size-4" />
                     </Sidebar.MenuButton>
                 {/snippet}
             </DropdownMenu.Trigger>
@@ -53,14 +61,14 @@
                 <DropdownMenu.Separator />
                 <DropdownMenu.Group>
                     <DropdownMenu.Item>
-                        <SparklesIcon />
+                        <SparkleIcon />
                         Upgrade to Pro
                     </DropdownMenu.Item>
                 </DropdownMenu.Group>
                 <DropdownMenu.Separator />
                 <DropdownMenu.Group>
                     <DropdownMenu.Item>
-                        <BadgeCheckIcon />
+                        <SealCheckIcon />
                         Account
                     </DropdownMenu.Item>
                     <DropdownMenu.Item>
@@ -74,7 +82,7 @@
                 </DropdownMenu.Group>
                 <DropdownMenu.Separator />
                 <DropdownMenu.Item>
-                    <LogOutIcon />
+                    <SignOutIcon />
                     Log out
                 </DropdownMenu.Item>
             </DropdownMenu.Content>
