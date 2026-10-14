@@ -1,7 +1,7 @@
 <script lang="ts">
     import * as Sidebar from "#lib/components/ui/sidebar/index.js";
     import { useSidebar } from "#lib/components/ui/sidebar/context.svelte.js";
-    import type { NavItem } from "./data.js";
+    import type { NavItem } from "./navigation.js";
 
     let {
         items,

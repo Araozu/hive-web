@@ -11,7 +11,7 @@
     import * as DropdownMenu from "#lib/components/ui/dropdown-menu/index.js";
     import * as Sidebar from "#lib/components/ui/sidebar/index.js";
     import { useSidebar } from "#lib/components/ui/sidebar/index.js";
-    import type { User } from "./data.js";
+    import type { User } from "./navigation.js";
 
     let { user }: { user: User } = $props();
 

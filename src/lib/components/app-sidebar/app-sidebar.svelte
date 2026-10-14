@@ -1,24 +1,23 @@
 <script lang="ts">
     import * as Sidebar from "#lib/components/ui/sidebar/index.js";
     import type { ComponentProps } from "svelte";
+    import type { Snippet } from "svelte";
     import AppBrand from "./app-brand.svelte";
-    import MailList from "./mail-list.svelte";
     import NavMain from "./nav-main.svelte";
     import NavUser from "./nav-user.svelte";
-    import { mails as initialMails, navMain, user, type NavItem } from "./data.js";
+    import { navMain, user, type NavItem } from "./navigation.js";
 
-    let { ref = $bindable(null), ...restProps }: ComponentProps<typeof Sidebar.Root> = $props();
-
-    let activeItem = $state<NavItem>(navMain[0]);
-    let mails = $state(initialMails);
-
-    function handleSelect(item: NavItem) {
-        activeItem = item;
-        // Demo behavior from sidebar-09: shuffle mails on folder change.
-        // Replace with real filtering when folders are wired up.
-        const shuffled = [...initialMails].sort(() => Math.random() - 0.5);
-        mails = shuffled.slice(0, Math.max(5, Math.floor(Math.random() * 10) + 1));
-    }
+    let {
+        ref = $bindable(null),
+        activeTitle = navMain[0].title,
+        onSelectFolder,
+        children,
+        ...restProps
+    }: ComponentProps<typeof Sidebar.Root> & {
+        activeTitle?: string;
+        onSelectFolder?: (item: NavItem) => void;
+        children?: Snippet;
+    } = $props();
 </script>
 
 <Sidebar.Root
@@ -33,15 +32,12 @@
             <AppBrand />
         </Sidebar.Header>
         <Sidebar.Content>
-            <NavMain items={navMain} activeTitle={activeItem.title} onSelect={handleSelect} />
+            <NavMain items={navMain} {activeTitle} onSelect={onSelectFolder} />
         </Sidebar.Content>
         <Sidebar.Footer>
             <NavUser {user} />
         </Sidebar.Footer>
     </Sidebar.Root>
 
-    <!-- Mail list panel -->
-    <Sidebar.Root collapsible="none" class="hidden flex-1 md:flex">
-        <MailList title={activeItem.title} {mails} />
-    </Sidebar.Root>
+    {@render children?.()}
 </Sidebar.Root>
