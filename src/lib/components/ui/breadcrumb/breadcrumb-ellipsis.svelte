@@ -1,5 +1,5 @@
 <script lang="ts">
-    import DotsThreeIcon from "phosphor-svelte/lib/DotsThree";
+    import { DotsThreeIcon } from "phosphor-svelte";
     import { cn, type WithElementRef, type WithoutChildren } from "#lib/utils.js";
     import type { HTMLAttributes } from "svelte/elements";
 

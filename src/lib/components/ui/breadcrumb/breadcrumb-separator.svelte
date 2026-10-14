@@ -1,5 +1,5 @@
 <script lang="ts">
-    import CaretRightIcon from "phosphor-svelte/lib/CaretRight";
+    import { CaretRightIcon } from "phosphor-svelte";
     import { cn, type WithElementRef } from "#lib/utils.js";
     import type { HTMLLiAttributes } from "svelte/elements";
 

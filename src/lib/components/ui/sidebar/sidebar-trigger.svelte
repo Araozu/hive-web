@@ -1,5 +1,5 @@
 <script lang="ts">
-    import SidebarIcon from "phosphor-svelte/lib/Sidebar";
+    import { SidebarIcon } from "phosphor-svelte";
     import { Button } from "#lib/components/ui/button/index.js";
     import { cn } from "#lib/utils.js";
     import { useSidebar } from "./context.svelte.js";
