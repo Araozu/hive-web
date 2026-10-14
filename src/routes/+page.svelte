@@ -7,33 +7,68 @@
     import { navMain, type NavItem } from "#lib/components/app-sidebar/navigation.js";
     import MailList from "#lib/components/mail/mail-list.svelte";
     import MailView from "#lib/components/mail/mail-view.svelte";
-    import { mails as initialMails, type Mail } from "#lib/components/mail/data.js";
+    import { fetchThreads, mailsForFolder, type DaemonSession } from "#lib/hive/threads.js";
+    import type { Mail } from "#lib/components/mail/data.js";
 
-    let mails = $state<Mail[]>(initialMails);
+    // The detail pane is intentionally static. Only the list below talks to the daemon.
+    const previewMail: Mail = {
+        id: "preview-fixed",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        subject: "Preview — detail pane is static",
+        date: "09:34 AM",
+        teaser: "This preview stays fixed while the list shows live daemon threads.",
+        body: "Hi there,\n\nThis detail pane is a fixed preview. It keeps the existing email layout, but it is not wired to daemon data.\n\nThe thread list on the left is the only view connected to slop-daemon (GET /v1/sessions). Select any thread to highlight it — this message stays put.\n\nBest,\nAda",
+        unread: false,
+        replies: [
+            {
+                name: "Grace Hopper",
+                email: "grace@example.com",
+                date: "10:02 AM",
+                body: "Noted — keeping the detail static makes it easy to work on the list wiring without chasing message history.",
+            },
+        ],
+    };
+
+    let threads = $state<DaemonSession[]>([]);
+    let loading = $state(true);
+    let error = $state<string | null>(null);
     let selectedMail = $state<Mail | null>(null);
     let activeItem = $state<NavItem>(navMain[0]);
 
+    let mails = $derived(mailsForFolder(activeItem.title, threads));
+
+    async function loadThreads() {
+        loading = true;
+        error = null;
+        try {
+            const sessions = await fetchThreads();
+            threads = sessions;
+            const visible = mailsForFolder(activeItem.title, sessions);
+            selectedMail = visible[0] ?? null;
+        } catch (e) {
+            error =
+                e instanceof Error
+                    ? `Could not load threads. ${e.message}`
+                    : "Could not load threads.";
+        } finally {
+            loading = false;
+        }
+    }
+
     function handleSelectFolder(item: NavItem) {
         activeItem = item;
-        // Demo behavior: shuffle mails on folder change.
-        // Replace with real filtering when folders are wired up.
-        const shuffled = [...initialMails].sort(() => Math.random() - 0.5);
-        const next = shuffled.slice(0, Math.max(5, Math.floor(Math.random() * 10) + 1));
-        mails = next;
-        handleSelectMail(next[0] ?? null);
+        const visible = mailsForFolder(item.title, threads);
+        selectedMail = visible[0] ?? null;
     }
 
     function handleSelectMail(mail: Mail | null) {
-        if (!mail) {
-            selectedMail = null;
-            return;
-        }
-        mails = mails.map((m) => (m.email === mail.email ? { ...m, unread: false } : m));
-        selectedMail = mails.find((m) => m.email === mail.email) ?? mail;
+        // Highlight-only: the detail pane stays on the fixed preview.
+        selectedMail = mail;
     }
 
     onMount(() => {
-        if (mails.length > 0) handleSelectMail(mails[0]);
+        void loadThreads();
     });
 </script>
 
@@ -44,8 +79,11 @@
             <MailList
                 title={activeItem.title}
                 {mails}
-                selectedEmail={selectedMail?.email ?? null}
+                {loading}
+                {error}
+                selectedEmail={selectedMail?.id ?? selectedMail?.email ?? null}
                 onSelect={handleSelectMail}
+                onRetry={() => void loadThreads()}
             />
         </Sidebar.Root>
     </AppSidebar>
@@ -65,17 +103,15 @@
                     <Breadcrumb.Item>
                         <Breadcrumb.Page>{activeItem.title}</Breadcrumb.Page>
                     </Breadcrumb.Item>
-                    {#if selectedMail}
-                        <Breadcrumb.Separator class="hidden md:block" />
-                        <Breadcrumb.Item class="hidden md:block">
-                            <Breadcrumb.Page>{selectedMail.subject}</Breadcrumb.Page>
-                        </Breadcrumb.Item>
-                    {/if}
+                    <Breadcrumb.Separator class="hidden md:block" />
+                    <Breadcrumb.Item class="hidden md:block">
+                        <Breadcrumb.Page>{previewMail.subject}</Breadcrumb.Page>
+                    </Breadcrumb.Item>
                 </Breadcrumb.List>
             </Breadcrumb.Root>
         </header>
         <div class="flex flex-1 flex-col">
-            <MailView mail={selectedMail} folder={activeItem.title} />
+            <MailView mail={previewMail} folder={activeItem.title} />
         </div>
     </Sidebar.Inset>
 </Sidebar.Provider>

@@ -6,6 +6,7 @@ export type MailReply = {
 };
 
 export type Mail = {
+    id?: string;
     name: string;
     email: string;
     subject: string;
