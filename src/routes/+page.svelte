@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import * as Breadcrumb from "#lib/components/ui/breadcrumb/index.js";
     import * as Sidebar from "#lib/components/ui/sidebar/index.js";
     import { Separator } from "#lib/components/ui/separator/index.js";
@@ -7,7 +6,10 @@
     import { navMain, type NavItem } from "#lib/components/app-sidebar/navigation.js";
     import MailList from "#lib/components/mail/mail-list.svelte";
     import MailView from "#lib/components/mail/mail-view.svelte";
-    import { fetchThreads, mailsForFolder, type DaemonSession } from "#lib/hive/threads.js";
+    import { createQuery } from "@tanstack/svelte-query";
+    import { sessionsQueryOptions } from "#lib/api/sessions.js";
+    import type { SessionResponse } from "#lib/api/types.js";
+    import { sessionsForFolder, sessionKey } from "#lib/hive/threads.js";
     import type { Mail } from "#lib/components/mail/data.js";
 
     // The detail pane is intentionally static. Only the list below talks to the daemon.
@@ -30,60 +32,54 @@
         ],
     };
 
-    let threads = $state<DaemonSession[]>([]);
-    let loading = $state(true);
-    let error = $state<string | null>(null);
-    let selectedMail = $state<Mail | null>(null);
     let activeItem = $state<NavItem>(navMain[0]);
+    let selectedSession = $state<SessionResponse | null>(null);
 
-    let mails = $derived(mailsForFolder(activeItem.title, threads));
+    // Generated OpenAPI types flow through TanStack Query.
+    const sessionsQuery = createQuery(() => sessionsQueryOptions());
 
-    async function loadThreads() {
-        loading = true;
-        error = null;
-        try {
-            const sessions = await fetchThreads();
-            threads = sessions;
-            const visible = mailsForFolder(activeItem.title, sessions);
-            selectedMail = visible[0] ?? null;
-        } catch (e) {
-            error =
-                e instanceof Error
-                    ? `Could not load threads. ${e.message}`
-                    : "Could not load threads.";
-        } finally {
-            loading = false;
+    let allSessions = $derived(sessionsQuery.data ?? []);
+    let visibleSessions = $derived(sessionsForFolder(activeItem.title, allSessions));
+
+    // Keep a highlight when the folder or data changes.
+    $effect(() => {
+        const visible = visibleSessions;
+        if (!visible.length) {
+            selectedSession = null;
+            return;
         }
-    }
+        if (
+            !selectedSession ||
+            !visible.some((s) => sessionKey(s) === sessionKey(selectedSession!))
+        ) {
+            selectedSession = visible[0];
+        }
+    });
 
     function handleSelectFolder(item: NavItem) {
         activeItem = item;
-        const visible = mailsForFolder(item.title, threads);
-        selectedMail = visible[0] ?? null;
+        const visible = sessionsForFolder(item.title, allSessions);
+        selectedSession = visible[0] ?? null;
     }
 
-    function handleSelectMail(mail: Mail | null) {
+    function handleSelectSession(session: SessionResponse | null) {
         // Highlight-only: the detail pane stays on the fixed preview.
-        selectedMail = mail;
+        selectedSession = session;
     }
-
-    onMount(() => {
-        void loadThreads();
-    });
 </script>
 
 <Sidebar.Provider style="--sidebar-width: 350px;">
     <AppSidebar activeTitle={activeItem.title} onSelectFolder={handleSelectFolder}>
-        <!-- Mail list panel -->
+        <!-- Session list panel -->
         <Sidebar.Root collapsible="none" class="hidden w-auto min-w-0 flex-1 md:flex">
             <MailList
                 title={activeItem.title}
-                {mails}
-                {loading}
-                {error}
-                selectedEmail={selectedMail?.id ?? selectedMail?.email ?? null}
-                onSelect={handleSelectMail}
-                onRetry={() => void loadThreads()}
+                sessions={visibleSessions}
+                loading={sessionsQuery.isPending}
+                error={sessionsQuery.error?.message ?? null}
+                selectedId={selectedSession ? sessionKey(selectedSession) : null}
+                onSelect={handleSelectSession}
+                onRetry={() => void sessionsQuery.refetch()}
             />
         </Sidebar.Root>
     </AppSidebar>

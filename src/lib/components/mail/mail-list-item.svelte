@@ -1,27 +1,29 @@
 <script lang="ts">
-    import { ChatsCircleIcon } from "phosphor-svelte";
     import { cn } from "#lib/utils.js";
-    import type { Mail } from "./data.js";
+    import type { SessionResponse } from "#lib/api/types.js";
+    import { displayTitle, isSessionUnread, modelLabel } from "#lib/hive/threads.js";
     import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 
     let {
-        mail,
+        session,
         active = false,
         onSelect,
     }: {
-        mail: Mail;
+        session: SessionResponse;
         active?: boolean;
-        onSelect?: (mail: Mail) => void;
+        onSelect?: (session: SessionResponse) => void;
     } = $props();
 
-    let replyCount = $derived(mail.replies?.length ?? 0);
+    let title = $derived(displayTitle(session));
+    let model = $derived(modelLabel(session));
+    let unread = $derived(isSessionUnread(session));
 </script>
 
 <ContextMenu.Root>
     <ContextMenu.Trigger>
         <button
             type="button"
-            onclick={() => onSelect?.(mail)}
+            onclick={() => onSelect?.(session)}
             aria-current={active ? "true" : undefined}
             class={cn(
                 "border-b border-border",
@@ -30,36 +32,28 @@
             )}
         >
             <div class="flex w-full max-w-full min-w-0 items-center gap-2">
-                {#if mail.unread && !active}
+                {#if unread && !active}
                     <span class="size-2 shrink-0 rounded-full bg-primary" aria-label="Unread"
                     ></span>
                 {/if}
-                <span class={cn("min-w-0 flex-1 truncate", mail.unread && "font-semibold")}>
-                    {mail.name}
+                <span class={cn("min-w-0 flex-1 truncate", unread && "font-semibold")}>
+                    {title}
                 </span>
-                <!-- demo: hardcoded value -->
-                <span class="ms-auto shrink-0 text-xs opacity-70">1h 30m</span>
+                <span class="ms-auto shrink-0 text-xs opacity-70">rev {session.revision}</span>
             </div>
             <span
                 class={cn(
                     "w-full max-w-full min-w-0 truncate font-medium",
-                    mail.unread && "font-semibold",
+                    unread && "font-semibold",
                 )}
             >
-                {mail.subject}
+                {title}
             </span>
             <span
                 class="line-clamp-2 w-full max-w-full min-w-0 overflow-hidden text-xs break-words whitespace-normal opacity-70"
             >
-                {mail.teaser}
+                {model} · seq {session.last_event_sequence}
             </span>
-            {#if replyCount > 0}
-                <span class="flex max-w-full min-w-0 items-center gap-1 text-xs opacity-70">
-                    <ChatsCircleIcon class="size-3.5" />
-                    {replyCount}
-                    {replyCount === 1 ? "reply" : "replies"}
-                </span>
-            {/if}
         </button>
     </ContextMenu.Trigger>
     <ContextMenu.Content>

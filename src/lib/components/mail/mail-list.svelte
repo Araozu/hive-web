@@ -4,44 +4,41 @@
     import { Label } from "#lib/components/ui/label/index.js";
     import { Switch } from "#lib/components/ui/switch/index.js";
     import { Button } from "#lib/components/ui/button/index.js";
-    import type { Mail } from "./data.js";
+    import type { SessionResponse } from "#lib/api/types.js";
+    import { displayTitle, isSessionUnread, modelLabel, sessionKey } from "#lib/hive/threads.js";
     import MailListItem from "./mail-list-item.svelte";
 
     let {
         title,
-        mails,
-        selectedEmail = null,
+        sessions,
+        selectedId = null,
         loading = false,
         error = null,
         onSelect,
         onRetry,
     }: {
         title: string;
-        mails: Mail[];
-        selectedEmail?: string | null;
+        sessions: SessionResponse[];
+        selectedId?: string | null;
         loading?: boolean;
         error?: string | null;
-        onSelect?: (mail: Mail) => void;
+        onSelect?: (session: SessionResponse) => void;
         onRetry?: () => void;
     } = $props();
 
     let query = $state("");
     let unreadsOnly = $state(false);
 
-    function keyFor(mail: Mail) {
-        return mail.id ?? mail.email;
-    }
-
     let filtered = $derived(
-        mails.filter((mail) => {
-            if (unreadsOnly && !mail.unread) return false;
+        sessions.filter((session) => {
+            if (unreadsOnly && !isSessionUnread(session)) return false;
             if (!query) return true;
             const q = query.toLowerCase();
             return (
-                mail.name.toLowerCase().includes(q) ||
-                mail.email.toLowerCase().includes(q) ||
-                mail.subject.toLowerCase().includes(q) ||
-                mail.teaser.toLowerCase().includes(q)
+                displayTitle(session).toLowerCase().includes(q) ||
+                session.provider.toLowerCase().includes(q) ||
+                session.model.toLowerCase().includes(q) ||
+                modelLabel(session).toLowerCase().includes(q)
             );
         }),
     );
@@ -73,8 +70,12 @@
                     </Button>
                 </div>
             {:else}
-                {#each filtered as mail (keyFor(mail))}
-                    <MailListItem {mail} active={selectedEmail === keyFor(mail)} {onSelect} />
+                {#each filtered as session (sessionKey(session))}
+                    <MailListItem
+                        {session}
+                        active={selectedId === sessionKey(session)}
+                        {onSelect}
+                    />
                 {:else}
                     <div class="p-4 text-sm text-muted-foreground">No messages found.</div>
                 {/each}

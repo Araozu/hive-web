@@ -1,0 +1,17 @@
+#!/bin/sh
+# Generate typed OpenAPI client from the core daemon.
+# Source of truth: ~/projects/hive/core `slop-daemon -- --dump-openapi` (utoipa).
+# Output: src/lib/api/openapi.d.ts via openapi-typescript.
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+CORE_DIR="${SLOP_CORE_DIR:-$ROOT/../core}"
+TMP="$(mktemp)"
+trap 'rm -f "$TMP"' EXIT INT TERM
+
+echo "Dumping OpenAPI from $CORE_DIR ..."
+cargo run -q -p slop-daemon --manifest-path "$CORE_DIR/Cargo.toml" -- --dump-openapi > "$TMP"
+
+echo "Generating TypeScript ..."
+npx openapi-typescript "$TMP" -o "$ROOT/src/lib/api/openapi.d.ts"
+echo "Wrote src/lib/api/openapi.d.ts"
