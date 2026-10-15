@@ -22,7 +22,7 @@ export function workspaceQueryOptions(id: string) {
 
 /**
  * Batch-resolve the distinct workspace ids referenced by the visible sessions.
- * Missing workspaces resolve to null (deleted / unsupported daemon) so one
+ * Missing workspaces resolve to null so one
  * bad id never fails the whole list. Returns a Map<workspaceId, WorkspaceResponse>.
  */
 export function sessionWorkspacesQueryOptions(workspaceIds: string[]) {
@@ -35,8 +35,9 @@ export function sessionWorkspacesQueryOptions(workspaceIds: string[]) {
                     try {
                         const workspace = await fetchWorkspace(id, signal);
                         return [id, workspace] as const;
-                    } catch {
-                        return null;
+                    } catch (error) {
+                        if (error instanceof DaemonError && error.status === 404) return null;
+                        throw error;
                     }
                 }),
             );

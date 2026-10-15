@@ -1,29 +1,26 @@
 <script lang="ts">
     import { cn } from "#lib/utils.js";
-    import type { SessionResponse } from "#lib/api/types.js";
+    import type { SessionResponse, WorkspaceResponse } from "#lib/api/types.js";
     import {
         displayTitle,
-        hasDirectExecutionRoot,
         isSessionUnread,
         modelLabel,
         sessionWorkspaceId,
-        workspaceLabel,
-        workspaceName,
+        resolveWorkspaceFull,
+        resolveWorkspaceName,
     } from "#lib/hive/threads.js";
     import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
 
     let {
         session,
         active = false,
-        workspaceDisplayName = null,
-        workspaceTooltip = null,
+        workspace = null,
         onSelect,
         onRenameWorkspace,
     }: {
         session: SessionResponse;
         active?: boolean;
-        workspaceDisplayName?: string | null;
-        workspaceTooltip?: string | null;
+        workspace?: WorkspaceResponse | null;
         onSelect?: (session: SessionResponse) => void;
         onRenameWorkspace?: (info: {
             workspaceId: string;
@@ -33,17 +30,16 @@
     } = $props();
 
     let title = $derived(displayTitle(session));
-    let fallbackWorkspace = $derived(workspaceName(session));
-    let fallbackFull = $derived(workspaceLabel(session));
-    let workspace = $derived(workspaceDisplayName?.trim() || fallbackWorkspace);
-    let workspaceFull = $derived(workspaceTooltip?.trim() || fallbackFull);
+    let workspaceDisplayName = $derived(resolveWorkspaceName(session, workspace));
+    let workspaceFull = $derived(resolveWorkspaceFull(session, workspace));
     let model = $derived(modelLabel(session));
     let unread = $derived(isSessionUnread(session));
     let workspaceId = $derived(sessionWorkspaceId(session));
-    // Ad-hoc sessions run directly on `execution.root` with no managed
-    // workspace record — core only supports renaming managed workspaces
-    // (POST /v1/workspaces/{id}/rename), so there is nothing to rename.
-    let isAdHoc = $derived(!workspaceId && hasDirectExecutionRoot(session));
+    let canRenameWorkspace = $derived(
+        workspace !== null &&
+            !workspace.is_default &&
+            !["removing", "removed"].includes(workspace.status),
+    );
 </script>
 
 <ContextMenu.Root>
@@ -67,7 +63,7 @@
                     class={cn("min-w-0 flex-1 truncate", unread && "font-semibold")}
                     title={workspaceFull}
                 >
-                    {workspace}
+                    {workspaceDisplayName}
                 </span>
                 <!-- demo/placeholder - leave here -->
                 <span class="ms-auto shrink-0 text-xs opacity-70">@</span>
@@ -88,26 +84,21 @@
         </button>
     </ContextMenu.Trigger>
     <ContextMenu.Content>
-        {#if workspaceId}
+        {#if canRenameWorkspace}
             <ContextMenu.Item
                 onclick={() =>
                     onRenameWorkspace?.({
-                        workspaceId: workspaceId!,
-                        currentName: workspace,
+                        workspaceId,
+                        currentName: workspaceDisplayName,
                         session,
                     })}
             >
                 Rename workspace…
             </ContextMenu.Item>
-        {:else if isAdHoc}
-            <ContextMenu.Item
-                disabled
-                title="This thread runs directly on a folder, not a managed project workspace."
-            >
-                Only project workspaces can be renamed
-            </ContextMenu.Item>
         {:else}
-            <ContextMenu.Item disabled>No workspace to rename</ContextMenu.Item>
+            <ContextMenu.Item disabled>
+                {workspace?.is_default ? "No workspace to rename" : "Workspace unavailable"}
+            </ContextMenu.Item>
         {/if}
     </ContextMenu.Content>
 </ContextMenu.Root>

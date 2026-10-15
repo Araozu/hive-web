@@ -8,6 +8,4 @@ export type SessionPage = components["schemas"]["Page_SessionResponse"];
 export type ErrorResponse = components["schemas"]["ErrorResponse"];
 export type WorkspaceResponse = components["schemas"]["WorkspaceResponse"];
 export type WorkspacePage = components["schemas"]["Page_WorkspaceResponse"];
-export type ProjectResponse = components["schemas"]["ProjectResponse"];
-export type ProjectPage = components["schemas"]["Page_ProjectResponse"];
 export type RenameWorkspaceRequest = components["schemas"]["RenameWorkspaceRequest"];

@@ -9,9 +9,9 @@
         displayTitle,
         isSessionUnread,
         modelLabel,
-        resolveWorkspaceFull,
         resolveWorkspaceName,
         sessionKey,
+        sessionWorkspaceId,
         workspaceLabel,
         workspaceName,
     } from "#lib/hive/threads.js";
@@ -57,7 +57,9 @@
                 displayTitle(session).toLowerCase().includes(q) ||
                 workspaceLabel(session).toLowerCase().includes(q) ||
                 workspaceName(session).toLowerCase().includes(q) ||
-                resolveWorkspaceName(session, workspacesById).toLowerCase().includes(q) ||
+                resolveWorkspaceName(session, workspacesById?.get(sessionWorkspaceId(session)))
+                    .toLowerCase()
+                    .includes(q) ||
                 session.provider.toLowerCase().includes(q) ||
                 session.model.toLowerCase().includes(q) ||
                 modelLabel(session).toLowerCase().includes(q)
@@ -102,8 +104,7 @@
                     <MailListItem
                         {session}
                         active={selectedId === sessionKey(session)}
-                        workspaceDisplayName={resolveWorkspaceName(session, workspacesById)}
-                        workspaceTooltip={resolveWorkspaceFull(session, workspacesById)}
+                        workspace={workspacesById?.get(sessionWorkspaceId(session)) ?? null}
                         {onSelect}
                         {onRenameWorkspace}
                     />

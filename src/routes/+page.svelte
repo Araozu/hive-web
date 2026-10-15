@@ -46,11 +46,7 @@
     let visibleSessions = $derived(sessionsForFolder(activeItem.title, allSessions));
 
     // Proper workspace names come from WorkspaceResponse.name (core rename API).
-    let workspaceIds = $derived(
-        allSessions
-            .map((session) => sessionWorkspaceId(session))
-            .filter((id): id is string => Boolean(id)),
-    );
+    let workspaceIds = $derived(allSessions.map(sessionWorkspaceId));
     const workspacesQuery = createQuery(() => sessionWorkspacesQueryOptions(workspaceIds));
     let workspacesById = $derived(workspacesQuery.data ?? null);
 
@@ -89,12 +85,10 @@
     }
 
     function handleRenameWorkspace(info: { workspaceId: string; currentName: string }) {
-        // Core has workspace rename only (POST /v1/workspaces/{id}/rename) —
-        // there is no project rename endpoint.
         const next = window.prompt("Rename workspace", info.currentName)?.trim() ?? null;
         if (next === null) return;
-        if (!next || next.length > 128 || [...next].some((ch) => ch < " ")) {
-            window.alert("Name must be 1-128 characters with no control characters.");
+        if (!next || new TextEncoder().encode(next).length > 128 || /\p{Cc}/u.test(next)) {
+            window.alert("Name must be 1-128 bytes with no control characters.");
             return;
         }
         if (next === info.currentName) return;

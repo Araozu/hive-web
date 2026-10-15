@@ -598,86 +598,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/projects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["projects"];
-        put?: never;
-        post: operations["register"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/projects/create": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/projects/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["project"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/projects/{id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["events"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/projects/{id}/workspaces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["workspaces"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/providers": {
         parameters: {
             query?: never;
@@ -963,7 +883,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["rename_session"];
         trace?: never;
     };
     "/v1/sessions/{session_id}/events": {
@@ -1254,6 +1174,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all workspaces, including opened directories and explicitly created worktrees. */
+        get: operations["workspaces"];
+        put?: never;
+        /** Open an existing directory in place. Git detection never creates a worktree. */
+        post: operations["open"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Explicitly create a new folder, optionally initializing Git. Returns allocating; poll until ready or failed. Never creates a worktree. */
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{id}": {
         parameters: {
             query?: never;
@@ -1261,6 +1216,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Inspect a workspace. */
         get: operations["workspace"];
         put?: never;
         post?: never;
@@ -1277,7 +1233,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Inspect Git changes. Opened checkouts compare against current HEAD; created worktrees compare against their frozen base. Ordinary folders return unsupported_capability. */
         get: operations["diff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List durable workspace events. */
+        get: operations["events"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1295,6 +1269,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Remove a workspace registration. Opened directories are retained. Slop-created worktrees are removed asynchronously only when clean and unchanged from their base. */
         post: operations["remove"];
         delete?: never;
         options?: never;
@@ -1311,7 +1286,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Rename a workspace without changing its path. */
         post: operations["rename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/worktrees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Explicitly create a detached worktree from an existing workspace. Returns allocating; poll the workspace until ready or failed. Uncommitted files are not copied. */
+        post: operations["worktree"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1372,9 +1365,9 @@ export interface components {
             models: string[];
             name: string;
             orchestration?: components["schemas"]["OrchestrationPolicy"] | null;
-            project?: components["schemas"]["ProjectWorkspaceRequest"] | null;
             prompts: string[];
             settings: components["schemas"]["GenerationSettings"][];
+            workspace: components["schemas"]["WorkspaceSelection"];
         };
         BlockContent:
             | {
@@ -1468,14 +1461,12 @@ export interface components {
             id: string;
         };
         ConversationDraft: {
-            allowed_tools?: string[] | null;
             id: string;
             model: string;
-            project?: components["schemas"]["ProjectWorkspaceRequest"] | null;
             settings?: components["schemas"]["GenerationSettings"] | null;
             text: string;
             title: string;
-            workspace: string;
+            workspace?: components["schemas"]["WorkspaceSelection"] | null;
         };
         CreateBatchRequest: {
             command_id: string;
@@ -1499,32 +1490,38 @@ export interface components {
             /** @description A caller-generated 256-bit bearer, encoded as 64 lowercase hex digits. */
             token: string;
         };
-        /** @description Creates a new repository in an exclusively created child directory. */
-        CreateProjectRequest: {
-            command_id: string;
-            git?: boolean;
-            name: string;
-            parent: string;
-        };
         CreateSessionRequest: {
             budget?: components["schemas"]["OperationBudget"] | null;
             command_id: string;
             /** @description Consume a saved compose draft atomically with session acceptance. */
             draft_id?: string | null;
-            execution?: components["schemas"]["WorkspacePolicy"] | null;
             /** Format: int32 */
             max_tokens?: number | null;
             model: string;
             orchestration?: components["schemas"]["OrchestrationPolicy"] | null;
-            project?: components["schemas"]["ProjectWorkspaceRequest"] | null;
             prompt?: string | null;
             provider: string;
             settings?: components["schemas"]["GenerationSettings"] | null;
             title?: string | null;
+            workspace: components["schemas"]["WorkspaceSelection"];
         };
         CreateTaskRequest: {
             command_id: string;
             spec: components["schemas"]["SessionSpec"];
+        };
+        /** @description Create and open a new directory, optionally initializing a Git repository. */
+        CreateWorkspaceRequest: {
+            command_id: string;
+            git?: boolean;
+            name: string;
+            parent: string;
+        };
+        /** @description Explicitly create another workspace as a detached Git worktree of an existing workspace. */
+        CreateWorktreeRequest: {
+            /** @description Freeze this revision at acceptance; omission selects the source workspace's HEAD. */
+            base_ref?: string | null;
+            command_id: string;
+            name?: string | null;
         };
         /** @description Remove this message and its suffix from the conversation's visible history. */
         DeleteMessageRequest: {
@@ -1685,6 +1682,12 @@ export interface components {
             node_id: string;
             os: string;
         };
+        /** @description Open an existing directory in place. Never creates a worktree. */
+        OpenWorkspaceRequest: {
+            command_id: string;
+            /** @description Existing absolute directory on the authoritative daemon. */
+            path: string;
+        };
         OperationBudget: {
             /** Format: int32 */
             max_model_requests: number;
@@ -1738,14 +1741,12 @@ export interface components {
         };
         Page_ConversationDraft: {
             items: {
-                allowed_tools?: string[] | null;
                 id: string;
                 model: string;
-                project?: components["schemas"]["ProjectWorkspaceRequest"] | null;
                 settings?: components["schemas"]["GenerationSettings"] | null;
                 text: string;
                 title: string;
-                workspace: string;
+                workspace?: components["schemas"]["WorkspaceSelection"] | null;
             }[];
             /** Format: int64 */
             next_after?: number | null;
@@ -1788,28 +1789,6 @@ export interface components {
             /** Format: int64 */
             next_after?: number | null;
         };
-        Page_ProjectEventResponse: {
-            items: {
-                kind: string;
-                project_id: string;
-                /** Format: int64 */
-                sequence: number;
-                workspace_id?: string | null;
-            }[];
-            /** Format: int64 */
-            next_after?: number | null;
-        };
-        Page_ProjectResponse: {
-            items: {
-                /** @description Canonical Git common directory, or an empty string for a plain folder project. */
-                git_common_dir: string;
-                id: string;
-                owner_node_id: string;
-                path: string;
-            }[];
-            /** Format: int64 */
-            next_after?: number | null;
-        };
         Page_RunResponse: {
             items: {
                 /** Format: int32 */
@@ -1820,7 +1799,7 @@ export interface components {
                 session_id: string;
                 task_id: string;
                 turn: components["schemas"]["TurnResponse"];
-                workspace_id?: string | null;
+                workspace_id: string;
             }[];
             /** Format: int64 */
             next_after?: number | null;
@@ -1839,7 +1818,6 @@ export interface components {
                 /** Format: int64 */
                 last_event_sequence: number;
                 latest_run?: components["schemas"]["RunResponse"] | null;
-                managed_workspace_id?: string | null;
                 /** Format: int32 */
                 max_tokens?: number | null;
                 model: string;
@@ -1851,6 +1829,7 @@ export interface components {
                 settings?: components["schemas"]["GenerationSettings"];
                 spec: components["schemas"]["SessionSpec"];
                 title?: string | null;
+                workspace_id: string;
             }[];
             /** Format: int64 */
             next_after?: number | null;
@@ -1898,17 +1877,35 @@ export interface components {
             /** Format: int64 */
             next_after?: number | null;
         };
+        Page_WorkspaceEventResponse: {
+            items: {
+                kind: string;
+                /** Format: int64 */
+                sequence: number;
+                workspace_id: string;
+            }[];
+            /** Format: int64 */
+            next_after?: number | null;
+        };
         Page_WorkspaceResponse: {
             items: {
-                base_commit: string;
+                /** @description Exact starting commit for an explicitly created worktree. */
+                base_commit?: string | null;
                 effects_unknown: boolean;
                 error_code?: string | null;
+                /** @description Optional Git identity. Ordinary folders need no Git installation. */
+                git_common_dir?: string | null;
                 id: string;
-                name?: string;
+                /** @description Built-in container for threads without a directory. */
+                is_default: boolean;
+                /** @description Whether Slop owns creation and filesystem cleanup of this worktree. */
+                managed_worktree: boolean;
+                name: string;
                 owner_node_id: string;
-                path: string;
-                project_id: string;
-                session_id: string;
+                /** @description Canonical absolute directory on the owner. */
+                path?: string | null;
+                source_workspace_id?: string | null;
+                /** @description allocating, ready, removing, removed, or failed. */
                 status: string;
             }[];
             /** Format: int64 */
@@ -1934,26 +1931,6 @@ export interface components {
         };
         /** @enum {string} */
         PeerScope: "read" | "control";
-        ProjectEventResponse: {
-            kind: string;
-            project_id: string;
-            /** Format: int64 */
-            sequence: number;
-            workspace_id?: string | null;
-        };
-        ProjectResponse: {
-            /** @description Canonical Git common directory, or an empty string for a plain folder project. */
-            git_common_dir: string;
-            id: string;
-            owner_node_id: string;
-            path: string;
-        };
-        ProjectWorkspaceRequest: {
-            allowed_tools: string[];
-            /** @description Resolved to an exact commit at acceptance. Omission selects HEAD. */
-            base_ref?: string | null;
-            project_id: string;
-        };
         ProviderAccount: {
             active: boolean;
             authenticated: boolean;
@@ -1981,13 +1958,12 @@ export interface components {
             owner_node_id: string;
             token: string;
         };
-        RegisterProjectRequest: {
-            command_id: string;
-            /** @description Absolute checkout path on the owner's machine. */
-            path: string;
-        };
         RemoveWorkspaceRequest: {
             command_id: string;
+        };
+        RenameSessionRequest: {
+            command_id: string;
+            title: string;
         };
         RenameWorkspaceRequest: {
             command_id: string;
@@ -2011,7 +1987,7 @@ export interface components {
             session_id: string;
             task_id: string;
             turn: components["schemas"]["TurnResponse"];
-            workspace_id?: string | null;
+            workspace_id: string;
         };
         RunResultResponse: {
             output?: components["schemas"]["MessageResponse"] | null;
@@ -2060,7 +2036,6 @@ export interface components {
             /** Format: int64 */
             last_event_sequence: number;
             latest_run?: components["schemas"]["RunResponse"] | null;
-            managed_workspace_id?: string | null;
             /** Format: int32 */
             max_tokens?: number | null;
             model: string;
@@ -2072,16 +2047,17 @@ export interface components {
             settings?: components["schemas"]["GenerationSettings"];
             spec: components["schemas"]["SessionSpec"];
             title?: string | null;
+            workspace_id: string;
         };
         SessionSpec: {
             budget?: components["schemas"]["OperationBudget"] | null;
             /** @description Provider-qualified model identifier. */
             model: string;
             orchestration?: components["schemas"]["OrchestrationPolicy"] | null;
-            project?: components["schemas"]["ProjectWorkspaceRequest"] | null;
             prompt: string;
             settings?: components["schemas"]["GenerationSettings"];
             title?: string | null;
+            workspace: components["schemas"]["WorkspaceSelection"];
         };
         SetApiKeyRequest: {
             api_key: string;
@@ -2197,6 +2173,12 @@ export interface components {
             status: string;
             workspace_id: string;
         };
+        WorkspaceEventResponse: {
+            kind: string;
+            /** Format: int64 */
+            sequence: number;
+            workspace_id: string;
+        };
         WorkspacePolicy: {
             allowed_tools: string[];
             /** Format: int32 */
@@ -2210,16 +2192,50 @@ export interface components {
             shell_timeout_ms?: number;
         };
         WorkspaceResponse: {
-            base_commit: string;
+            /** @description Exact starting commit for an explicitly created worktree. */
+            base_commit?: string | null;
             effects_unknown: boolean;
             error_code?: string | null;
+            /** @description Optional Git identity. Ordinary folders need no Git installation. */
+            git_common_dir?: string | null;
             id: string;
-            name?: string;
+            /** @description Built-in container for threads without a directory. */
+            is_default: boolean;
+            /** @description Whether Slop owns creation and filesystem cleanup of this worktree. */
+            managed_worktree: boolean;
+            name: string;
             owner_node_id: string;
-            path: string;
-            project_id: string;
-            session_id: string;
+            /** @description Canonical absolute directory on the owner. */
+            path?: string | null;
+            source_workspace_id?: string | null;
+            /** @description allocating, ready, removing, removed, or failed. */
             status: string;
+        };
+        /** @description Select an existing workspace for execution. Selection never creates files or worktrees. */
+        WorkspaceSelection: {
+            allowed_tools?: string[];
+            limits?: components["schemas"]["WorkspaceToolLimits"] | null;
+            workspace_id: string;
+        };
+        /** @description Per-session execution limits, independent of workspace lifecycle. */
+        WorkspaceToolLimits: {
+            /**
+             * Format: int32
+             * @default 4294967295
+             */
+            max_model_requests: number;
+            /** @default 1048576 */
+            max_output_bytes: number;
+            /**
+             * Format: int32
+             * @default 4294967295
+             */
+            max_tool_calls: number;
+            /**
+             * Format: int64
+             * @default 30000
+             */
+            shell_timeout_ms: number;
         };
     };
     responses: never;
@@ -5329,293 +5345,6 @@ export interface operations {
             };
         };
     };
-    projects: {
-        parameters: {
-            query?: {
-                /** @description Cursor after which to page */
-                after?: number;
-                /** @description Page limit, 1-200 */
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Registered projects */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ProjectResponse"];
-                };
-            };
-            /** @description Invalid limit */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    register: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegisterProjectRequest"];
-            };
-        };
-        responses: {
-            /** @description Project registration accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Daemon shutting down */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateProjectRequest"];
-            };
-        };
-        responses: {
-            /** @description Project creation accepted; a service task owns completion */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            /** @description Invalid request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Project creation failed */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Daemon shutting down */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    project: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Project id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Project record */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Project not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    events: {
-        parameters: {
-            query?: {
-                /** @description Cursor after which to page */
-                after?: number;
-                /** @description Page limit, 1-200 */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                /** @description Project id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Project events */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_ProjectEventResponse"];
-                };
-            };
-            /** @description Invalid limit */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    workspaces: {
-        parameters: {
-            query?: {
-                /** @description Cursor after which to page */
-                after?: number;
-                /** @description Page limit, 1-200 */
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                /** @description Project id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Project workspaces */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Page_WorkspaceResponse"];
-                };
-            };
-            /** @description Invalid limit */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     statuses: {
         parameters: {
             query?: never;
@@ -6658,6 +6387,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rename_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id */
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Session rename accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandReceipt"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Missing or invalid bearer token */
@@ -7763,114 +7546,30 @@ export interface operations {
             };
         };
     };
-    workspace: {
+    workspaces: {
         parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Workspace id */
-                id: string;
+            query?: {
+                /** @description Cursor after which to page */
+                after?: number;
+                /** @description Page limit, 1-200 */
+                limit?: number;
             };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Workspace record */
+            /** @description List all workspaces, including opened directories and explicitly created worktrees. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkspaceResponse"];
+                    "application/json": components["schemas"]["Page_WorkspaceResponse"];
                 };
             };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Workspace not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    diff: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Workspace id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Workspace diff */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceDiffResponse"];
-                };
-            };
-            /** @description Missing or invalid bearer token */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Workspace not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Workspace id */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RemoveWorkspaceRequest"];
-            };
-        };
-        responses: {
-            /** @description Workspace removal accepted */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResponse"];
-                };
-            };
-            /** @description Invalid request */
+            /** @description Invalid request or unsupported capability */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7897,7 +7596,561 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Daemon shutting down */
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenWorkspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Open an existing directory in place. Git detection never creates a worktree. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Explicitly create a new folder, optionally initializing Git. Returns allocating; poll until ready or failed. Never creates a worktree. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    workspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inspect a workspace. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    diff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inspect Git changes. Opened checkouts compare against current HEAD; created worktrees compare against their frozen base. Ordinary folders return unsupported_capability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDiffResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    events: {
+        parameters: {
+            query?: {
+                /** @description Cursor after which to page */
+                after?: number;
+                /** @description Page limit, 1-200 */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Workspace id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List durable workspace events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_WorkspaceEventResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemoveWorkspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Remove a workspace registration. Opened directories are retained. Slop-created worktrees are removed asynchronously only when clean and unchanged from their base. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -7924,7 +8177,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Workspace renamed */
+            /** @description Rename a workspace without changing its path. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -7933,7 +8186,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkspaceResponse"];
                 };
             };
-            /** @description Invalid request */
+            /** @description Invalid request or unsupported capability */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -7960,7 +8213,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Workspace or command state conflict */
+            /** @description Workspace busy, unavailable, or command conflicts */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7969,7 +8222,115 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Daemon shutting down */
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    worktree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorktreeRequest"];
+            };
+        };
+        responses: {
+            /** @description Explicitly create a detached worktree from an existing workspace. Returns allocating; poll the workspace until ready or failed. Uncommitted files are not copied. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;
