@@ -1,8 +1,13 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./openapi.js";
-import type { SessionPage, SessionResponse } from "./types.js";
+import type {
+    RenameWorkspaceRequest,
+    SessionPage,
+    SessionResponse,
+    WorkspaceResponse,
+} from "./types.js";
 
-export type { SessionResponse };
+export type { SessionResponse, WorkspaceResponse };
 
 export class DaemonError extends Error {
     constructor(
@@ -64,4 +69,28 @@ export async function fetchAllSessions(signal?: AbortSignal): Promise<SessionRes
         after = next;
     } while (after !== null);
     return items;
+}
+
+export async function fetchWorkspace(id: string, signal?: AbortSignal): Promise<WorkspaceResponse> {
+    const { data, error, response } = await daemonClient.GET("/v1/workspaces/{id}", {
+        params: { path: { id } },
+        signal,
+    });
+    if (data) return data;
+    throw new DaemonError(daemonErrorMessage(response.status, error), response.status);
+}
+
+/** Rename a managed workspace. Core validates: trimmed 1-128 chars, no control chars. */
+export async function renameWorkspace(
+    id: string,
+    request: RenameWorkspaceRequest,
+    signal?: AbortSignal,
+): Promise<WorkspaceResponse> {
+    const { data, error, response } = await daemonClient.POST("/v1/workspaces/{id}/rename", {
+        params: { path: { id } },
+        body: request,
+        signal,
+    });
+    if (data) return data;
+    throw new DaemonError(daemonErrorMessage(response.status, error), response.status);
 }

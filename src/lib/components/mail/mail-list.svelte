@@ -4,28 +4,45 @@
     import { Label } from "#lib/components/ui/label/index.js";
     import { Switch } from "#lib/components/ui/switch/index.js";
     import { Button } from "#lib/components/ui/button/index.js";
-    import type { SessionResponse } from "#lib/api/types.js";
-    import { displayTitle, isSessionUnread, modelLabel, sessionKey } from "#lib/hive/threads.js";
+    import type { SessionResponse, WorkspaceResponse } from "#lib/api/types.js";
+    import {
+        displayTitle,
+        isSessionUnread,
+        modelLabel,
+        resolveWorkspaceFull,
+        resolveWorkspaceName,
+        sessionKey,
+        workspaceLabel,
+        workspaceName,
+    } from "#lib/hive/threads.js";
     import MailListItem from "./mail-list-item.svelte";
 
     let {
         title,
         sessions,
+        workspacesById = null,
         selectedId = null,
         loading = false,
         refreshing = false,
         error = null,
         onSelect,
         onRetry,
+        onRenameWorkspace,
     }: {
         title: string;
         sessions: SessionResponse[];
+        workspacesById?: Map<string, WorkspaceResponse> | null;
         selectedId?: string | null;
         loading?: boolean;
         refreshing?: boolean;
         error?: string | null;
         onSelect?: (session: SessionResponse) => void;
         onRetry?: () => void;
+        onRenameWorkspace?: (info: {
+            workspaceId: string;
+            currentName: string;
+            session: SessionResponse;
+        }) => void;
     } = $props();
 
     let query = $state("");
@@ -38,6 +55,9 @@
             const q = query.toLowerCase();
             return (
                 displayTitle(session).toLowerCase().includes(q) ||
+                workspaceLabel(session).toLowerCase().includes(q) ||
+                workspaceName(session).toLowerCase().includes(q) ||
+                resolveWorkspaceName(session, workspacesById).toLowerCase().includes(q) ||
                 session.provider.toLowerCase().includes(q) ||
                 session.model.toLowerCase().includes(q) ||
                 modelLabel(session).toLowerCase().includes(q)
@@ -82,7 +102,10 @@
                     <MailListItem
                         {session}
                         active={selectedId === sessionKey(session)}
+                        workspaceDisplayName={resolveWorkspaceName(session, workspacesById)}
+                        workspaceTooltip={resolveWorkspaceFull(session, workspacesById)}
                         {onSelect}
+                        {onRenameWorkspace}
                     />
                 {:else}
                     {#if !error}

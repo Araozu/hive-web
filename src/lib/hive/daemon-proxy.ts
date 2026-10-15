@@ -20,7 +20,7 @@ const routes: [string, string][] = [
     ["POST", `turns/${id}/(?:pause|resume|cancel)`],
     ["GET", `messages/${id}|tools/${id}|artifacts/${id}(?:/content)?`],
     ["GET", `projects/${id}(?:/(?:workspaces|events))?|workspaces/${id}(?:/diff)?`],
-    ["POST", `workspaces/${id}/remove`],
+    ["POST", `workspaces/${id}/(?:remove|rename)`],
     ["GET", `tasks/${id}(?:/(?:runs|events))?|runs/${id}(?:/(?:children|result))?`],
     ["POST", `tasks/${id}/instructions|runs/${id}/(?:pause|resume|cancel|retry|children|wait)`],
     ["GET", `batches/${id}(?:/(?:members|results))?`],

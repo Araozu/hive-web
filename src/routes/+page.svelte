@@ -6,10 +6,12 @@
     import { navMain, type NavItem } from "#lib/components/app-sidebar/navigation.js";
     import MailList from "#lib/components/mail/mail-list.svelte";
     import MailView from "#lib/components/mail/mail-view.svelte";
-    import { createQuery } from "@tanstack/svelte-query";
+    import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
     import { sessionsQueryOptions } from "#lib/api/sessions.js";
+    import { sessionWorkspacesQueryOptions } from "#lib/api/workspaces.js";
+    import { renameWorkspace } from "#lib/api/client.js";
     import type { SessionResponse } from "#lib/api/types.js";
-    import { sessionsForFolder, sessionKey } from "#lib/hive/threads.js";
+    import { sessionsForFolder, sessionKey, sessionWorkspaceId } from "#lib/hive/threads.js";
     import type { Mail } from "#lib/components/mail/data.js";
 
     // The detail pane is intentionally static. Only the list below talks to the daemon.
@@ -35,11 +37,30 @@
     let activeItem = $state<NavItem>(navMain[0]);
     let selectedSession = $state<SessionResponse | null>(null);
 
+    const queryClient = useQueryClient();
+
     // Generated OpenAPI types flow through TanStack Query.
     const sessionsQuery = createQuery(() => sessionsQueryOptions());
 
     let allSessions = $derived(sessionsQuery.data ?? []);
     let visibleSessions = $derived(sessionsForFolder(activeItem.title, allSessions));
+
+    // Proper workspace names come from WorkspaceResponse.name (core rename API).
+    let workspaceIds = $derived(
+        allSessions
+            .map((session) => sessionWorkspaceId(session))
+            .filter((id): id is string => Boolean(id)),
+    );
+    const workspacesQuery = createQuery(() => sessionWorkspacesQueryOptions(workspaceIds));
+    let workspacesById = $derived(workspacesQuery.data ?? null);
+
+    const renameMutation = createMutation(() => ({
+        mutationFn: ({ workspaceId, name }: { workspaceId: string; name: string }) =>
+            renameWorkspace(workspaceId, { command_id: crypto.randomUUID(), name }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["daemon", "workspaces"] });
+        },
+    }));
 
     // Keep a highlight when the folder or data changes.
     $effect(() => {
@@ -66,6 +87,24 @@
         // Highlight-only: the detail pane stays on the fixed preview.
         selectedSession = session;
     }
+
+    function handleRenameWorkspace(info: { workspaceId: string; currentName: string }) {
+        // Core has workspace rename only (POST /v1/workspaces/{id}/rename) —
+        // there is no project rename endpoint.
+        const next = window.prompt("Rename workspace", info.currentName)?.trim() ?? null;
+        if (next === null) return;
+        if (!next || next.length > 128 || [...next].some((ch) => ch < " ")) {
+            window.alert("Name must be 1-128 characters with no control characters.");
+            return;
+        }
+        if (next === info.currentName) return;
+        renameMutation.mutate(
+            { workspaceId: info.workspaceId, name: next },
+            {
+                onError: (error) => window.alert(error.message),
+            },
+        );
+    }
 </script>
 
 <Sidebar.Provider style="--sidebar-width: 350px;">
@@ -75,12 +114,14 @@
             <MailList
                 title={activeItem.title}
                 sessions={visibleSessions}
+                {workspacesById}
                 loading={sessionsQuery.isPending}
                 refreshing={sessionsQuery.isFetching}
                 error={sessionsQuery.error?.message ?? null}
                 selectedId={selectedSession ? sessionKey(selectedSession) : null}
                 onSelect={handleSelectSession}
                 onRetry={() => void sessionsQuery.refetch()}
+                onRenameWorkspace={handleRenameWorkspace}
             />
         </Sidebar.Root>
     </AppSidebar>
