@@ -32,7 +32,8 @@
         <span class={cn("min-w-0 flex-1 truncate", mail.unread && "font-semibold")}>
             {mail.name}
         </span>
-        <span class="ms-auto shrink-0 text-xs opacity-70">{mail.date}</span>
+        <!-- demo: hardcoded value -->
+        <span class="ms-auto shrink-0 text-xs opacity-70">1h 30m</span>
     </div>
     <span
         class={cn("w-full max-w-full min-w-0 truncate font-medium", mail.unread && "font-semibold")}
