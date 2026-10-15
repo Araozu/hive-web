@@ -13,6 +13,7 @@
         sessions,
         selectedId = null,
         loading = false,
+        refreshing = false,
         error = null,
         onSelect,
         onRetry,
@@ -21,6 +22,7 @@
         sessions: SessionResponse[];
         selectedId?: string | null;
         loading?: boolean;
+        refreshing?: boolean;
         error?: string | null;
         onSelect?: (session: SessionResponse) => void;
         onRetry?: () => void;
@@ -64,12 +66,18 @@
             {:else if error}
                 <div class="flex flex-col items-start gap-2 p-4">
                     <p class="text-sm text-muted-foreground">{error}</p>
-                    <Button variant="outline" size="sm" onclick={() => onRetry?.()}>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={refreshing}
+                        onclick={() => onRetry?.()}
+                    >
                         <ArrowClockwiseIcon data-icon="inline-start" />
-                        Retry
+                        {refreshing ? "Retrying…" : "Retry"}
                     </Button>
                 </div>
-            {:else}
+            {/if}
+            {#if !loading}
                 {#each filtered as session (sessionKey(session))}
                     <MailListItem
                         {session}
@@ -77,7 +85,9 @@
                         {onSelect}
                     />
                 {:else}
-                    <div class="p-4 text-sm text-muted-foreground">No messages found.</div>
+                    {#if !error}
+                        <div class="p-4 text-sm text-muted-foreground">No messages found.</div>
+                    {/if}
                 {/each}
             {/if}
         </Sidebar.GroupContent>

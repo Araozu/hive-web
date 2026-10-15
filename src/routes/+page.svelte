@@ -76,6 +76,7 @@
                 title={activeItem.title}
                 sessions={visibleSessions}
                 loading={sessionsQuery.isPending}
+                refreshing={sessionsQuery.isFetching}
                 error={sessionsQuery.error?.message ?? null}
                 selectedId={selectedSession ? sessionKey(selectedSession) : null}
                 onSelect={handleSelectSession}

@@ -1,6 +1,6 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./openapi.js";
-import type { SessionResponse } from "./types.js";
+import type { SessionPage, SessionResponse } from "./types.js";
 
 export type { SessionResponse };
 
@@ -34,10 +34,7 @@ export const daemonClient = createClient<paths>({
     baseUrl: "/api/daemon",
 });
 
-async function fetchSessionPage(
-    after: number | null,
-    signal?: AbortSignal,
-): Promise<{ items: SessionResponse[]; next_after: number | null }> {
+async function fetchSessionPage(after: number | null, signal?: AbortSignal): Promise<SessionPage> {
     const { data, error, response } = await daemonClient.GET("/v1/sessions", {
         params: {
             query: {
@@ -48,7 +45,9 @@ async function fetchSessionPage(
         signal,
     });
 
-    if (data) return { items: data.items, next_after: data.next_after ?? null };
+    if (data) return data;
+    if (response.ok)
+        throw new DaemonError("Daemon returned an empty session page.", response.status);
     throw new DaemonError(daemonErrorMessage(response.status, error), response.status);
 }
 
@@ -59,7 +58,10 @@ export async function fetchAllSessions(signal?: AbortSignal): Promise<SessionRes
     do {
         const batch = await fetchSessionPage(after, signal);
         items.push(...batch.items);
-        after = batch.next_after;
+        const next = batch.next_after ?? null;
+        if (next !== null && next <= (after ?? 0))
+            throw new DaemonError("Daemon returned a non-advancing session cursor.", 200);
+        after = next;
     } while (after !== null);
     return items;
 }

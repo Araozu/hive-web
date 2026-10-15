@@ -1360,32 +1360,37 @@ export interface components {
             prompts: string[];
             settings: components["schemas"]["GenerationSettings"][];
         };
-        BlockContent: {
-            text: string;
-            /** @enum {string} */
-            type: "text";
-        } | {
-            arguments: unknown;
-            call_id: string;
-            name: string;
-            /** @enum {string} */
-            type: "tool_call";
-        } | {
-            artifact_ids: string[];
-            call_id: string;
-            effects_unknown: boolean;
-            is_error: boolean;
-            output: string;
-            /** @enum {string} */
-            type: "tool_result";
-        } | {
-            text: string;
-            /** @enum {string} */
-            type: "refusal";
-        } | {
-            /** @enum {string} */
-            type: "unknown";
-        };
+        BlockContent:
+            | {
+                  text: string;
+                  /** @enum {string} */
+                  type: "text";
+              }
+            | {
+                  arguments: unknown;
+                  call_id: string;
+                  name: string;
+                  /** @enum {string} */
+                  type: "tool_call";
+              }
+            | {
+                  artifact_ids: string[];
+                  call_id: string;
+                  effects_unknown: boolean;
+                  is_error: boolean;
+                  output: string;
+                  /** @enum {string} */
+                  type: "tool_result";
+              }
+            | {
+                  text: string;
+                  /** @enum {string} */
+                  type: "refusal";
+              }
+            | {
+                  /** @enum {string} */
+                  type: "unknown";
+              };
         BudgetUsage: {
             /** Format: int64 */
             model_requests: number;
@@ -1536,28 +1541,31 @@ export interface components {
             code: string;
             message: string;
         };
-        EventFrame: {
-            event: components["schemas"]["EventResponse"];
-            /** @enum {string} */
-            type: "durable";
-        } | {
-            block_id?: string | null;
-            /** Format: int64 */
-            chunk_index?: number;
-            invocation_id?: string | null;
-            kind?: string;
-            message_id?: string | null;
-            request_id?: string | null;
-            session_id: string;
-            stream_id?: string;
-            text: string;
-            turn_id: string;
-            /** @enum {string} */
-            type: "delta";
-        } | {
-            /** @enum {string} */
-            type: "heartbeat";
-        };
+        EventFrame:
+            | {
+                  event: components["schemas"]["EventResponse"];
+                  /** @enum {string} */
+                  type: "durable";
+              }
+            | {
+                  block_id?: string | null;
+                  /** Format: int64 */
+                  chunk_index?: number;
+                  invocation_id?: string | null;
+                  kind?: string;
+                  message_id?: string | null;
+                  request_id?: string | null;
+                  session_id: string;
+                  stream_id?: string;
+                  text: string;
+                  turn_id: string;
+                  /** @enum {string} */
+                  type: "delta";
+              }
+            | {
+                  /** @enum {string} */
+                  type: "heartbeat";
+              };
         EventResponse: {
             invocation_id?: string | null;
             kind: string;
