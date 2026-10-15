@@ -75,7 +75,7 @@
 <Sidebar.Provider style="--sidebar-width: 350px;">
     <AppSidebar activeTitle={activeItem.title} onSelectFolder={handleSelectFolder}>
         <!-- Mail list panel -->
-        <Sidebar.Root collapsible="none" class="hidden flex-1 md:flex">
+        <Sidebar.Root collapsible="none" class="hidden w-auto min-w-0 flex-1 md:flex">
             <MailList
                 title={activeItem.title}
                 {mails}
