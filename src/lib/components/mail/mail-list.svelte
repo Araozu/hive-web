@@ -28,6 +28,7 @@
         onSelect,
         onRetry,
         onRenameWorkspace,
+        onRenameSession,
     }: {
         title: string;
         sessions: SessionResponse[];
@@ -41,6 +42,11 @@
         onRenameWorkspace?: (info: {
             workspaceId: string;
             currentName: string;
+            session: SessionResponse;
+        }) => void;
+        onRenameSession?: (info: {
+            sessionId: string;
+            currentTitle: string;
             session: SessionResponse;
         }) => void;
     } = $props();
@@ -106,6 +112,7 @@
                         workspaceTooltip={resolveWorkspaceFull(session, workspacesById)}
                         {onSelect}
                         {onRenameWorkspace}
+                        {onRenameSession}
                     />
                 {:else}
                     {#if !error}

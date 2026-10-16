@@ -1,6 +1,8 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./openapi.js";
 import type {
+    CommandReceipt,
+    RenameSessionRequest,
     RenameWorkspaceRequest,
     SessionPage,
     SessionResponse,
@@ -89,6 +91,22 @@ export async function renameWorkspace(
 ): Promise<WorkspaceResponse> {
     const { data, error, response } = await daemonClient.POST("/v1/workspaces/{id}/rename", {
         params: { path: { id } },
+        body: request,
+        signal,
+    });
+    if (data) return data;
+    throw new DaemonError(daemonErrorMessage(response.status, error), response.status);
+}
+
+/** Rename a thread. Core validates: trimmed 1-256 chars, no control chars.
+ * PATCH /v1/sessions/{session_id} with RenameSessionRequest. */
+export async function renameSession(
+    id: string,
+    request: RenameSessionRequest,
+    signal?: AbortSignal,
+): Promise<CommandReceipt> {
+    const { data, error, response } = await daemonClient.PATCH("/v1/sessions/{session_id}", {
+        params: { path: { session_id: id } },
         body: request,
         signal,
     });

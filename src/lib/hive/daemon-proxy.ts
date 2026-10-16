@@ -5,33 +5,29 @@ import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import type { Plugin } from "vite";
-const id = "[A-Za-z0-9_.-]+";
-const routes: [string, string][] = [
-    ["GET", "filesystem"],
-    ["POST", "filesystem/directories"],
-    ["GET", "health|node|capabilities|models|providers"],
-    ["GET|POST", "sessions|tasks|batches"],
-    ["GET", `sessions/${id}(?:/(?:messages|instructions|events))?`],
-    ["POST", `sessions/${id}/messages`],
-    ["POST", `sessions/${id}/inbox`],
-    ["GET", "drafts"],
-    ["PUT|DELETE", `drafts/${id}`],
-    ["GET", `turns/${id}(?:/(?:requests|tools))?`],
-    ["POST", `turns/${id}/(?:pause|resume|cancel)`],
-    ["GET", `messages/${id}|tools/${id}|artifacts/${id}(?:/content)?`],
-    ["GET", "workspaces"],
-    ["POST", "workspaces|workspaces/create"],
-    ["GET", `workspaces/${id}(?:/(?:diff|events))?`],
-    ["POST", `workspaces/${id}/(?:remove|rename|worktrees)`],
-    ["GET", `tasks/${id}(?:/(?:runs|events))?|runs/${id}(?:/(?:children|result))?`],
-    ["POST", `tasks/${id}/instructions|runs/${id}/(?:pause|resume|cancel|retry|children|wait)`],
-    ["GET", `batches/${id}(?:/(?:members|results))?`],
-    ["POST", `batches/preview|batches/${id}/(?:retry|cancel)`],
-    ["GET", `providers/${id}/models|providers/codex/accounts|providers/codex/login/${id}`],
-    ["PUT|DELETE", `providers/${id}/api-key`],
-    ["PUT", "providers/codex/auth"],
-    ["POST", `providers/codex/login|providers/codex/accounts/${id}/logout`],
-].map(([method, path]) => [method, `^/v1/(?:${path})$`]);
+import openapiDocument from "../api/openapi.json" with { type: "json" };
+
+// Routes are derived directly from the OpenAPI document (see
+// scripts/generate-openapi.sh). No manual list — `pnpm generate:api`
+// refreshes both openapi.json and openapi.d.ts from core.
+function openapiPathToRegExp(template: string): RegExp {
+    const pattern = template
+        .split(/(\{[^}]+\})/g)
+        .map((part) =>
+            part.startsWith("{") ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        )
+        .join("");
+    return new RegExp(`^${pattern}$`);
+}
+
+const routes: [method: string, pattern: RegExp][] = Object.entries(
+    (openapiDocument as { paths: Record<string, Record<string, unknown>> }).paths,
+).flatMap(([template, methods]) => {
+    const pattern = openapiPathToRegExp(template);
+    return Object.keys(methods).map(
+        (method) => [method.toUpperCase(), pattern] as [string, RegExp],
+    );
+});
 export function daemonProxy(): Plugin {
     const middleware = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         if (!req.url?.startsWith("/api/daemon/")) return next();
@@ -59,9 +55,9 @@ export function daemonProxy(): Plugin {
             return reply(403, "Cross-site daemon access is not allowed.");
         const path = req.url.slice("/api/daemon".length);
         const route = path.split("?")[0];
-        const matching = routes.filter(([, pattern]) => new RegExp(pattern).test(route));
+        const matching = routes.filter(([, pattern]) => pattern.test(route));
         if (!matching.length) return reply(404, "Unsupported daemon route.");
-        if (!matching.some(([method]) => new RegExp(`^(?:${method})$`).test(req.method ?? "")))
+        if (!matching.some(([method]) => method === (req.method ?? "")))
             return reply(405, "Unsupported method.");
         const controller = new AbortController();
         res.on("close", () => controller.abort());
@@ -101,7 +97,7 @@ export function daemonProxy(): Plugin {
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     "Content-Type": "application/json",
                 },
-                body: ["POST", "PUT"].includes(req.method ?? "")
+                body: ["POST", "PUT", "PATCH", "DELETE"].includes(req.method ?? "")
                     ? Buffer.concat(chunks)
                     : undefined,
                 signal: controller.signal,

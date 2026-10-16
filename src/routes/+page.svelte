@@ -9,7 +9,7 @@
     import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
     import { sessionsQueryOptions } from "#lib/api/sessions.js";
     import { sessionWorkspacesQueryOptions } from "#lib/api/workspaces.js";
-    import { renameWorkspace } from "#lib/api/client.js";
+    import { renameSession, renameWorkspace } from "#lib/api/client.js";
     import type { SessionResponse } from "#lib/api/types.js";
     import { sessionsForFolder, sessionKey, sessionWorkspaceId } from "#lib/hive/threads.js";
     import type { Mail } from "#lib/components/mail/data.js";
@@ -63,6 +63,14 @@
         },
     }));
 
+    const renameSessionMutation = createMutation(() => ({
+        mutationFn: ({ sessionId, title }: { sessionId: string; title: string }) =>
+            renameSession(sessionId, { command_id: crypto.randomUUID(), title }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["daemon", "sessions"] });
+        },
+    }));
+
     // Keep a highlight when the folder or data changes.
     $effect(() => {
         const visible = visibleSessions;
@@ -106,6 +114,24 @@
             },
         );
     }
+
+    function handleRenameSession(info: { sessionId: string; currentTitle: string }) {
+        // Durable title rename: PATCH /v1/sessions/{session_id}. Core validates
+        // trimmed 1-256 chars, no control chars.
+        const next = window.prompt("Rename thread", info.currentTitle)?.trim() ?? null;
+        if (next === null) return;
+        if (!next || next.length > 256 || [...next].some((ch) => ch < " ")) {
+            window.alert("Title must be 1-256 characters with no control characters.");
+            return;
+        }
+        if (next === info.currentTitle.trim()) return;
+        renameSessionMutation.mutate(
+            { sessionId: info.sessionId, title: next },
+            {
+                onError: (error) => window.alert(error.message),
+            },
+        );
+    }
 </script>
 
 <Sidebar.Provider style="--sidebar-width: 350px;">
@@ -123,6 +149,7 @@
                 onSelect={handleSelectSession}
                 onRetry={() => void sessionsQuery.refetch()}
                 onRenameWorkspace={handleRenameWorkspace}
+                onRenameSession={handleRenameSession}
             />
         </Sidebar.Root>
     </AppSidebar>

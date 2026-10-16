@@ -1,5 +1,11 @@
 <script lang="ts">
     import { cn } from "#lib/utils.js";
+    import {
+        FolderDashedIcon,
+        FolderSimpleIcon,
+        LockSimpleIcon,
+        PencilSimpleIcon,
+    } from "phosphor-svelte";
     import type { SessionResponse } from "#lib/api/types.js";
     import {
         displayTitle,
@@ -19,6 +25,7 @@
         workspaceTooltip = null,
         onSelect,
         onRenameWorkspace,
+        onRenameSession,
     }: {
         session: SessionResponse;
         active?: boolean;
@@ -28,6 +35,11 @@
         onRenameWorkspace?: (info: {
             workspaceId: string;
             currentName: string;
+            session: SessionResponse;
+        }) => void;
+        onRenameSession?: (info: {
+            sessionId: string;
+            currentTitle: string;
             session: SessionResponse;
         }) => void;
     } = $props();
@@ -87,6 +99,18 @@
         </button>
     </ContextMenu.Trigger>
     <ContextMenu.Content>
+        <ContextMenu.Item
+            onclick={() =>
+                onRenameSession?.({
+                    sessionId: session.id,
+                    currentTitle: session.title?.trim() ?? "",
+                    session,
+                })}
+        >
+            <PencilSimpleIcon />
+            Rename thread…
+        </ContextMenu.Item>
+        <ContextMenu.Separator />
         {#if workspaceId && !isDefaultWorkspace}
             <ContextMenu.Item
                 onclick={() =>
@@ -96,6 +120,7 @@
                         session,
                     })}
             >
+                <FolderSimpleIcon />
                 Rename workspace…
             </ContextMenu.Item>
         {:else if isDefaultWorkspace}
@@ -103,10 +128,14 @@
                 disabled
                 title="Threads without a directory use the built-in default workspace."
             >
+                <LockSimpleIcon />
                 Default workspace cannot be renamed
             </ContextMenu.Item>
         {:else}
-            <ContextMenu.Item disabled>No workspace to rename</ContextMenu.Item>
+            <ContextMenu.Item disabled>
+                <FolderDashedIcon />
+                No workspace to rename
+            </ContextMenu.Item>
         {/if}
     </ContextMenu.Content>
 </ContextMenu.Root>
