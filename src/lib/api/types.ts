@@ -11,3 +11,6 @@ export type WorkspacePage = components["schemas"]["Page_WorkspaceResponse"];
 export type WorkspaceSelection = components["schemas"]["WorkspaceSelection"];
 export type WorkspaceEventResponse = components["schemas"]["WorkspaceEventResponse"];
 export type RenameWorkspaceRequest = components["schemas"]["RenameWorkspaceRequest"];
+export type QueuedMessageResponse = components["schemas"]["QueuedMessageResponse"];
+export type InterruptSessionRequest = components["schemas"]["InterruptSessionRequest"];
+export type DeliveryMode = components["schemas"]["DeliveryMode"];

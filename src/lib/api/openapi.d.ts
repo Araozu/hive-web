@@ -950,6 +950,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/interrupt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["interrupt_session"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/messages": {
         parameters: {
             query?: never;
@@ -980,6 +996,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["edit_message"];
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["queued_messages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/tasks": {
@@ -1269,7 +1301,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Remove a workspace registration. Opened directories are retained. Slop-created worktrees are removed asynchronously only when clean and unchanged from their base. */
+        /** Remove a workspace registration. Opened directories are retained. Hive-created worktrees are removed asynchronously only when clean and unchanged from their base. */
         post: operations["remove"];
         delete?: never;
         options?: never;
@@ -1530,7 +1562,7 @@ export interface components {
             expected_revision?: number | null;
         };
         /** @enum {string} */
-        DeliveryMode: "after-turn" | "next-boundary" | "immediate";
+        DeliveryMode: "after-turn" | "after-finish" | "next-boundary" | "immediate";
         DirectoryEntry: {
             kind: string;
             name: string;
@@ -1613,6 +1645,19 @@ export interface components {
             capabilities: string[];
             service: string;
             version: string;
+        };
+        InterruptSessionRequest: {
+            command_id: string;
+            /**
+             * @description Atomically accept prompts already submitted by the client, including
+             *     requests whose HTTP acknowledgement has not arrived yet.
+             */
+            messages?: components["schemas"]["SendMessageRequest"][];
+            /**
+             * @description Pin cancellation to the run the client saw, so a late request cannot
+             *     cancel its successor. Omit to interrupt the current run.
+             */
+            turn_id?: string | null;
         };
         /** @description The URL is an ephemeral authorization link, never an access token. */
         LoginResponse: {
@@ -1898,7 +1943,7 @@ export interface components {
                 id: string;
                 /** @description Built-in container for threads without a directory. */
                 is_default: boolean;
-                /** @description Whether Slop owns creation and filesystem cleanup of this worktree. */
+                /** @description Whether Hive owns creation and filesystem cleanup of this worktree. */
                 managed_worktree: boolean;
                 name: string;
                 owner_node_id: string;
@@ -1951,6 +1996,12 @@ export interface components {
             chatgpt_configured: boolean;
             execution_supported: boolean;
             provider: string;
+        };
+        /** @description A durable, unsent message in session FIFO order. */
+        QueuedMessageResponse: {
+            delivery: components["schemas"]["DeliveryMode"];
+            id: string;
+            text: string;
         };
         RegisterPeerRequest: {
             /** @description Exact HTTPS origin. HTTP is accepted only for literal loopback addresses. */
@@ -2201,7 +2252,7 @@ export interface components {
             id: string;
             /** @description Built-in container for threads without a directory. */
             is_default: boolean;
-            /** @description Whether Slop owns creation and filesystem cleanup of this worktree. */
+            /** @description Whether Hive owns creation and filesystem cleanup of this worktree. */
             managed_worktree: boolean;
             name: string;
             owner_node_id: string;
@@ -6681,6 +6732,60 @@ export interface operations {
             };
         };
     };
+    interrupt_session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id */
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterruptSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Cancel execution and dispatch the leading queue batch */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandReceipt"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Session not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     messages: {
         parameters: {
             query?: {
@@ -6892,6 +6997,47 @@ export interface operations {
                 };
             };
             /** @description Message not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    queued_messages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id */
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unsent messages in FIFO order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedMessageResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Session not found */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -8087,7 +8233,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Remove a workspace registration. Opened directories are retained. Slop-created worktrees are removed asynchronously only when clean and unchanged from their base. */
+            /** @description Remove a workspace registration. Opened directories are retained. Hive-created worktrees are removed asynchronously only when clean and unchanged from their base. */
             202: {
                 headers: {
                     [name: string]: unknown;
