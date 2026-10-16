@@ -47,11 +47,11 @@
 
     // Proper workspace names come from WorkspaceResponse.name (core rename API).
     // Every session selects a workspace, including the built-in `default`.
-    let workspaceIds = $derived(
-        allSessions
-            .map((session) => sessionWorkspaceId(session))
-            .filter((id): id is string => Boolean(id)),
-    );
+     let workspaceIds = $derived(
+         allSessions
+             .map((session) => sessionWorkspaceId(session))
+             .filter((id): id is string => Boolean(id)),
+     );
     const workspacesQuery = createQuery(() => sessionWorkspacesQueryOptions(workspaceIds));
     let workspacesById = $derived(workspacesQuery.data ?? null);
 
@@ -102,8 +102,8 @@
         // `default` workspace cannot be renamed (disabled in the list item).
         const next = window.prompt("Rename workspace", info.currentName)?.trim() ?? null;
         if (next === null) return;
-        if (!next || next.length > 128 || [...next].some((ch) => ch < " ")) {
-            window.alert("Name must be 1-128 characters with no control characters.");
+        if (!next || new TextEncoder().encode(next).length > 128 || /\p{Cc}/u.test(next)) {
+            window.alert("Name must be 1-128 bytes with no control characters.");
             return;
         }
         if (next === info.currentName) return;
