@@ -80,7 +80,8 @@ export async function fetchWorkspace(id: string, signal?: AbortSignal): Promise<
     throw new DaemonError(daemonErrorMessage(response.status, error), response.status);
 }
 
-/** Rename a managed workspace. Core validates: trimmed 1-128 chars, no control chars. */
+/** Rename a workspace. Core validates: trimmed 1-128 chars, no control chars.
+ * The built-in `default` workspace cannot be renamed. */
 export async function renameWorkspace(
     id: string,
     request: RenameWorkspaceRequest,

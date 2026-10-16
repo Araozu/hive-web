@@ -8,6 +8,9 @@ export type DaemonSessionInbox = SessionInbox;
 /** @deprecated Use `SessionResponse` from `#lib/api/types.js`. */
 export type DaemonSession = SessionResponse;
 
+/** Built-in workspace for threads without a directory. Cannot be renamed or removed. */
+export const DEFAULT_WORKSPACE_ID = "default";
+
 // Daemon-owned identity. Core `SessionResponse.id` is unique — no email fallback.
 export function sessionKey(session: SessionResponse): string {
     return session.id;
@@ -22,11 +25,20 @@ export function modelLabel(session: SessionResponse): string {
     return `${session.provider}/${session.model}`;
 }
 
-/** Workspace id referenced by a session, if any. Only project-backed
- * sessions have one — ad-hoc sessions with a direct `execution.root`
- * have no managed workspace record and therefore nothing renameable. */
+export function isDefaultWorkspaceId(id: string | null | undefined): boolean {
+    return (id?.trim() ?? "") === DEFAULT_WORKSPACE_ID;
+}
+
+/** Authoritative workspace id selected by a session, including `default`.
+ * Every session has one — unified workspaces removed the old
+ * `managed_workspace_id` / `spec.project` fields. Falls back to the latest
+ * run for very old daemons. */
 export function sessionWorkspaceId(session: SessionResponse): string | null {
-    return session.managed_workspace_id?.trim() || session.latest_run?.workspace_id?.trim() || null;
+    const direct = session.workspace_id?.trim();
+    if (direct) return direct;
+    // Pre-unified daemons exposed the workspace only via the latest run.
+    const run = session.latest_run?.workspace_id?.trim();
+    return run || null;
 }
 
 export function hasDirectExecutionRoot(session: SessionResponse): boolean {
@@ -45,27 +57,33 @@ function basenameOf(path: string): string {
 export function workspaceLabel(session: SessionResponse): string {
     const root = session.execution?.root?.trim();
     if (root) return root;
-    const runWorkspace = session.latest_run?.workspace_id?.trim();
-    if (runWorkspace) return runWorkspace;
-    const managed = session.managed_workspace_id?.trim();
-    if (managed) return managed;
-    const project =
-        session.spec?.project?.project_id?.trim() ||
-        session.requested_spec?.project?.project_id?.trim();
-    if (project) return project;
+    const id = sessionWorkspaceId(session);
+    if (id && !isDefaultWorkspaceId(id)) return id;
+    const specId =
+        session.spec?.workspace?.workspace_id?.trim() ||
+        session.requested_spec?.workspace?.workspace_id?.trim();
+    if (specId && !isDefaultWorkspaceId(specId)) return specId;
     return "No workspace";
 }
 
 export function workspaceName(session: SessionResponse): string {
     const root = session.execution?.root?.trim();
     if (root) return basenameOf(root);
-    return workspaceLabel(session);
+    const id =
+        sessionWorkspaceId(session) ||
+        session.spec?.workspace?.workspace_id?.trim() ||
+        session.requested_spec?.workspace?.workspace_id?.trim();
+    if (id) {
+        if (isDefaultWorkspaceId(id)) return "No workspace";
+        return id;
+    }
+    return "No workspace";
 }
 
 /**
  * Proper display name: prefers the daemon-owned `WorkspaceResponse.name`
- * (set via POST /v1/workspaces/{id}/rename, defaults to the workspace id),
- * then falls back to the local basename heuristic.
+ * (set via POST /v1/workspaces/{id}/rename). The built-in `default`
+ * workspace is named "No workspace" and has no path.
  */
 export function resolveWorkspaceName(
     session: SessionResponse,
@@ -75,6 +93,7 @@ export function resolveWorkspaceName(
     if (id) {
         const name = workspacesById?.get(id)?.name?.trim();
         if (name) return name;
+        if (isDefaultWorkspaceId(id)) return "No workspace";
     }
     return workspaceName(session);
 }
@@ -92,8 +111,21 @@ export function resolveWorkspaceFull(
         if (name && path && name !== path) return `${name} — ${path}`;
         if (path) return path;
         if (name) return name;
+        if (isDefaultWorkspaceId(id)) return "No workspace";
     }
     return workspaceLabel(session);
+}
+
+/** The built-in `default` workspace cannot be renamed or removed. */
+export function canRenameWorkspace(
+    session: SessionResponse,
+    workspacesById?: Map<string, WorkspaceResponse> | null,
+): boolean {
+    const id = sessionWorkspaceId(session);
+    if (!id || isDefaultWorkspaceId(id)) return false;
+    const workspace = workspacesById?.get(id);
+    if (workspace?.is_default) return false;
+    return true;
 }
 
 export function isSessionUnread(session: SessionResponse): boolean {

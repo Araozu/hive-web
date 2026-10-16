@@ -3,7 +3,7 @@
     import type { SessionResponse } from "#lib/api/types.js";
     import {
         displayTitle,
-        hasDirectExecutionRoot,
+        isDefaultWorkspaceId,
         isSessionUnread,
         modelLabel,
         sessionWorkspaceId,
@@ -40,10 +40,9 @@
     let model = $derived(modelLabel(session));
     let unread = $derived(isSessionUnread(session));
     let workspaceId = $derived(sessionWorkspaceId(session));
-    // Ad-hoc sessions run directly on `execution.root` with no managed
-    // workspace record — core only supports renaming managed workspaces
-    // (POST /v1/workspaces/{id}/rename), so there is nothing to rename.
-    let isAdHoc = $derived(!workspaceId && hasDirectExecutionRoot(session));
+    // Unified workspaces: every session selects a workspace, including the
+    // built-in `default` ("No workspace") which cannot be renamed or removed.
+    let isDefaultWorkspace = $derived(!workspaceId || isDefaultWorkspaceId(workspaceId));
 </script>
 
 <ContextMenu.Root>
@@ -88,7 +87,7 @@
         </button>
     </ContextMenu.Trigger>
     <ContextMenu.Content>
-        {#if workspaceId}
+        {#if workspaceId && !isDefaultWorkspace}
             <ContextMenu.Item
                 onclick={() =>
                     onRenameWorkspace?.({
@@ -99,12 +98,12 @@
             >
                 Rename workspace…
             </ContextMenu.Item>
-        {:else if isAdHoc}
+        {:else if isDefaultWorkspace}
             <ContextMenu.Item
                 disabled
-                title="This thread runs directly on a folder, not a managed project workspace."
+                title="Threads without a directory use the built-in default workspace."
             >
-                Only project workspaces can be renamed
+                Default workspace cannot be renamed
             </ContextMenu.Item>
         {:else}
             <ContextMenu.Item disabled>No workspace to rename</ContextMenu.Item>

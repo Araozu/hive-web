@@ -46,6 +46,7 @@
     let visibleSessions = $derived(sessionsForFolder(activeItem.title, allSessions));
 
     // Proper workspace names come from WorkspaceResponse.name (core rename API).
+    // Every session selects a workspace, including the built-in `default`.
     let workspaceIds = $derived(
         allSessions
             .map((session) => sessionWorkspaceId(session))
@@ -89,8 +90,8 @@
     }
 
     function handleRenameWorkspace(info: { workspaceId: string; currentName: string }) {
-        // Core has workspace rename only (POST /v1/workspaces/{id}/rename) —
-        // there is no project rename endpoint.
+        // Unified workspaces: POST /v1/workspaces/{id}/rename. The built-in
+        // `default` workspace cannot be renamed (disabled in the list item).
         const next = window.prompt("Rename workspace", info.currentName)?.trim() ?? null;
         if (next === null) return;
         if (!next || next.length > 128 || [...next].some((ch) => ch < " ")) {
