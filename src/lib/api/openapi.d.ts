@@ -694,6 +694,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/providers/codex/login/{login_id}/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["login_callback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/providers/{provider}/api-key": {
         parameters: {
             query?: never;
@@ -1014,6 +1030,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/queue/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["cancel_queued_message"];
+        options?: never;
+        head?: never;
+        patch: operations["update_queued_message"];
+        trace?: never;
+    };
     "/v1/tasks": {
         parameters: {
             query?: never;
@@ -1252,6 +1284,23 @@ export interface paths {
         get: operations["workspace"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{id}/color": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set an opaque RGB workspace color (#RRGGBB, no alpha). */
+        post: operations["set_color"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1659,9 +1708,14 @@ export interface components {
              */
             turn_id?: string | null;
         };
+        /** @description Contains a single-use authorization code. Never log or persist this request. */
+        LoginCallbackRequest: {
+            callback_url: string;
+        };
         /** @description The URL is an ephemeral authorization link, never an access token. */
         LoginResponse: {
             authorization_url: string;
+            headless?: boolean;
             login_id: string;
         };
         LoginStatus: {
@@ -1862,6 +1916,14 @@ export interface components {
                 inbox?: components["schemas"]["SessionInbox"] | null;
                 /** Format: int64 */
                 last_event_sequence: number;
+                /**
+                 * Format: int64
+                 * @description Last accepted prompt, steering instruction, or queued-input edit, in Unix
+                 *     milliseconds (daemon clock). Null until input is accepted, including for
+                 *     migrated sessions whose historical input times are unknown. Retries and
+                 *     deferred delivery do not refresh this timestamp.
+                 */
+                last_user_activity_at?: number | null;
                 latest_run?: components["schemas"]["RunResponse"] | null;
                 /** Format: int32 */
                 max_tokens?: number | null;
@@ -1936,6 +1998,11 @@ export interface components {
             items: {
                 /** @description Exact starting commit for an explicitly created worktree. */
                 base_commit?: string | null;
+                /**
+                 * @description Opaque RGB display color, normalized to uppercase #RRGGBB.
+                 * @example #3B82F6
+                 */
+                color?: string;
                 effects_unknown: boolean;
                 error_code?: string | null;
                 /** @description Optional Git identity. Ordinary folders need no Git installation. */
@@ -2086,6 +2153,14 @@ export interface components {
             inbox?: components["schemas"]["SessionInbox"] | null;
             /** Format: int64 */
             last_event_sequence: number;
+            /**
+             * Format: int64
+             * @description Last accepted prompt, steering instruction, or queued-input edit, in Unix
+             *     milliseconds (daemon clock). Null until input is accepted, including for
+             *     migrated sessions whose historical input times are unknown. Retries and
+             *     deferred delivery do not refresh this timestamp.
+             */
+            last_user_activity_at?: number | null;
             latest_run?: components["schemas"]["RunResponse"] | null;
             /** Format: int32 */
             max_tokens?: number | null;
@@ -2113,6 +2188,15 @@ export interface components {
         SetApiKeyRequest: {
             api_key: string;
         };
+        /** @description Set a workspace's opaque RGB display color. */
+        SetWorkspaceColorRequest: {
+            /**
+             * @description Six hexadecimal RGB digits prefixed by #. Alpha and shorthand are not accepted.
+             * @example #3B82F6
+             */
+            color: string;
+            command_id: string;
+        };
         SignOutResponse: {
             account_id: string;
             remote_revocation_confirmed: boolean;
@@ -2124,6 +2208,12 @@ export interface components {
              */
             account_id?: string | null;
             command_id: string;
+            /**
+             * @description Accept the browser callback through the authenticated API instead of a
+             *     loopback listener. The browser may run on another machine.
+             * @default false
+             */
+            headless: boolean;
         };
         SteeringInstructionResponse: {
             delivery: components["schemas"]["DeliveryMode"];
@@ -2189,6 +2279,12 @@ export interface components {
             usage?: components["schemas"]["UsageResponse"] | null;
             user_message_id: string;
         };
+        /** @description Change an unsent message in place, preserving its FIFO position and settings. */
+        UpdateQueuedMessageRequest: {
+            command_id: string;
+            delivery?: components["schemas"]["DeliveryMode"] | null;
+            text?: string | null;
+        };
         UpdateSessionInboxRequest: {
             archived?: boolean | null;
             command_id: string;
@@ -2245,6 +2341,11 @@ export interface components {
         WorkspaceResponse: {
             /** @description Exact starting commit for an explicitly created worktree. */
             base_commit?: string | null;
+            /**
+             * @description Opaque RGB display color, normalized to uppercase #RRGGBB.
+             * @example #3B82F6
+             */
+            color?: string;
             effects_unknown: boolean;
             error_code?: string | null;
             /** @description Optional Git identity. Ordinary folders need no Git installation. */
@@ -3132,7 +3233,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Executable model catalog */
+            /** @description Executable model catalog with provider-specific reasoning efforts from refreshed public metadata and compiled fallbacks */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5674,6 +5775,69 @@ export interface operations {
             };
         };
     };
+    login_callback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pending headless login id */
+                login_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginCallbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Callback accepted for validation and token exchange */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginStatus"];
+                };
+            };
+            /** @description Invalid callback or login is not pending/headless */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Login flow not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon shutting down */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     set_api_key: {
         parameters: {
             query?: never;
@@ -5790,7 +5954,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Live provider model catalog */
+            /** @description Live provider model IDs enriched with supported public metadata, including reasoning efforts */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7048,6 +7212,136 @@ export interface operations {
             };
         };
     };
+    cancel_queued_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id */
+                session_id: string;
+                /** @description Queued message id */
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelTurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued message cancelled */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandReceipt"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Queued message not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Already dispatched, cancelled, or command conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_queued_message: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id */
+                session_id: string;
+                /** @description Queued message id */
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateQueuedMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued message updated in place */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommandReceipt"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Queued message not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Already dispatched, cancelled, or command conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     tasks: {
         parameters: {
             query?: {
@@ -7968,6 +8262,96 @@ export interface operations {
         responses: {
             /** @description Inspect a workspace. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            /** @description Invalid request or unsupported capability */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing or invalid bearer token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace busy, unavailable, or command conflicts */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Workspace or service capacity reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Operation failed; inspect workspace state before retrying */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Daemon or storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_color: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Workspace id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetWorkspaceColorRequest"];
+            };
+        };
+        responses: {
+            /** @description Set an opaque RGB workspace color (#RRGGBB, no alpha). */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

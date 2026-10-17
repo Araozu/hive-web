@@ -6,9 +6,11 @@
     import { Button } from "#lib/components/ui/button/index.js";
     import type { SessionResponse, WorkspaceResponse } from "#lib/api/types.js";
     import {
+        compareSessionsByLastInteraction,
         displayTitle,
         isSessionUnread,
         modelLabel,
+        resolveWorkspaceColor,
         resolveWorkspaceFull,
         resolveWorkspaceName,
         sessionKey,
@@ -54,22 +56,30 @@
     let query = $state("");
     let unreadsOnly = $state(false);
 
+    // Filtered threads, sorted by SessionResponse.last_user_activity_at —
+    // more recent above, unknown timestamps last.
     let filtered = $derived(
-        sessions.filter((session) => {
-            if (unreadsOnly && !isSessionUnread(session)) return false;
-            if (!query) return true;
-            const q = query.toLowerCase();
-            return (
-                displayTitle(session).toLowerCase().includes(q) ||
-                workspaceLabel(session).toLowerCase().includes(q) ||
-                workspaceName(session).toLowerCase().includes(q) ||
-                resolveWorkspaceName(session, workspacesById).toLowerCase().includes(q) ||
-                session.provider.toLowerCase().includes(q) ||
-                session.model.toLowerCase().includes(q) ||
-                modelLabel(session).toLowerCase().includes(q)
-            );
-        }),
+        sessions
+            .filter((session) => {
+                if (unreadsOnly && !isSessionUnread(session)) return false;
+                if (!query) return true;
+                const q = query.toLowerCase();
+                return (
+                    displayTitle(session).toLowerCase().includes(q) ||
+                    workspaceLabel(session).toLowerCase().includes(q) ||
+                    workspaceName(session).toLowerCase().includes(q) ||
+                    resolveWorkspaceName(session, workspacesById).toLowerCase().includes(q) ||
+                    session.provider.toLowerCase().includes(q) ||
+                    session.model.toLowerCase().includes(q) ||
+                    modelLabel(session).toLowerCase().includes(q)
+                );
+            })
+            .sort(compareSessionsByLastInteraction),
     );
+
+    function workspaceColorFor(session: SessionResponse): string | null {
+        return resolveWorkspaceColor(session, workspacesById);
+    }
 </script>
 
 <Sidebar.Header class="gap-3.5 border-b p-4">
@@ -110,6 +120,7 @@
                         active={selectedId === sessionKey(session)}
                         workspaceDisplayName={resolveWorkspaceName(session, workspacesById)}
                         workspaceTooltip={resolveWorkspaceFull(session, workspacesById)}
+                        workspaceColor={workspaceColorFor(session)}
                         {onSelect}
                         {onRenameWorkspace}
                         {onRenameSession}

@@ -9,9 +9,11 @@
     import type { SessionResponse } from "#lib/api/types.js";
     import {
         displayTitle,
+        formatLastInteraction,
         isDefaultWorkspaceId,
         isSessionUnread,
         modelLabel,
+        sessionLastInteractionMs,
         sessionWorkspaceId,
         workspaceLabel,
         workspaceName,
@@ -23,6 +25,7 @@
         active = false,
         workspaceDisplayName = null,
         workspaceTooltip = null,
+        workspaceColor = null,
         onSelect,
         onRenameWorkspace,
         onRenameSession,
@@ -31,6 +34,7 @@
         active?: boolean;
         workspaceDisplayName?: string | null;
         workspaceTooltip?: string | null;
+        workspaceColor?: string | null;
         onSelect?: (session: SessionResponse) => void;
         onRenameWorkspace?: (info: {
             workspaceId: string;
@@ -52,6 +56,17 @@
     let model = $derived(modelLabel(session));
     let unread = $derived(isSessionUnread(session));
     let workspaceId = $derived(sessionWorkspaceId(session));
+    let workspaceColorValue = $derived(workspaceColor?.trim() || null);
+    // SessionResponse.last_user_activity_at drives the recency label below.
+    let lastInteractionMs = $derived(
+        session.last_user_activity_at ?? sessionLastInteractionMs(session),
+    );
+    let lastInteractionLabel = $derived(formatLastInteraction(lastInteractionMs));
+    let lastInteractionFull = $derived(
+        lastInteractionMs == null
+            ? "No activity yet"
+            : new Date(lastInteractionMs).toLocaleString(),
+    );
     // Unified workspaces: every session selects a workspace, including the
     // built-in `default` ("No workspace") which cannot be renamed or removed.
     let isDefaultWorkspace = $derived(!workspaceId || isDefaultWorkspaceId(workspaceId));
@@ -70,6 +85,14 @@
             )}
         >
             <div class="flex w-full max-w-full min-w-0 items-center gap-2">
+                {#if workspaceColorValue}
+                    <span
+                        class="size-3 shrink-0 rounded-full border border-border"
+                        style="background-color: {workspaceColorValue}"
+                        aria-label="Workspace color"
+                        title={workspaceColorValue}
+                    ></span>
+                {/if}
                 {#if unread && !active}
                     <span class="size-2 shrink-0 rounded-full bg-primary" aria-label="Unread">
                     </span>
@@ -80,8 +103,11 @@
                 >
                     {workspace}
                 </span>
-                <!-- demo/placeholder - leave here -->
-                <span class="ms-auto shrink-0 text-xs opacity-70">@</span>
+                {#if lastInteractionLabel}
+                    <span class="ms-auto shrink-0 text-xs opacity-70" title={lastInteractionFull}>
+                        {lastInteractionLabel}
+                    </span>
+                {/if}
             </div>
             <span
                 class={cn(
