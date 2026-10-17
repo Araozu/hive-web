@@ -132,6 +132,24 @@ export function isSessionUnread(session: SessionResponse): boolean {
     return (session.inbox?.read_sequence ?? 0) < session.last_event_sequence;
 }
 
+/** Archived threads (settled). Daemon-owned inbox flag; trashed threads are
+ * separately retained and never count as merely archived. */
+export function isSessionArchived(session: SessionResponse): boolean {
+    return session.inbox?.archived ?? false;
+}
+
+/** @deprecated Use `isSessionArchived` — settle maps to daemon archived. */
+export function isSessionSettled(session: SessionResponse): boolean {
+    return isSessionArchived(session);
+}
+
+/** Active threads are neither archived nor trashed. The Inbox list shows
+ * only these; archived threads move to Junk. */
+export function isSessionActive(session: SessionResponse): boolean {
+    const inbox = session.inbox;
+    return !(inbox?.archived ?? false) && !(inbox?.trashed ?? false);
+}
+
 /** Last user interaction in Unix milliseconds (daemon clock).
  * Null until input is accepted, including for migrated sessions whose
  * historical input times are unknown. */

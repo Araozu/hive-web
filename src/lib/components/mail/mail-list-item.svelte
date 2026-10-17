@@ -1,6 +1,8 @@
 <script lang="ts">
     import { cn } from "#lib/utils.js";
     import {
+        CheckIcon,
+        CircleNotchIcon,
         FolderDashedIcon,
         FolderSimpleIcon,
         LockSimpleIcon,
@@ -11,6 +13,7 @@
         displayTitle,
         formatLastInteraction,
         isDefaultWorkspaceId,
+        isSessionArchived,
         isSessionUnread,
         modelLabel,
         sessionLastInteractionMs,
@@ -19,6 +22,8 @@
         workspaceName,
     } from "#lib/hive/threads.js";
     import * as ContextMenu from "#lib/components/ui/context-menu/index.js";
+    import { Badge } from "#lib/components/ui/badge/index.js";
+    import { Button } from "#lib/components/ui/button/index.js";
 
     let {
         session,
@@ -29,6 +34,7 @@
         onSelect,
         onRenameWorkspace,
         onRenameSession,
+        onArchive,
     }: {
         session: SessionResponse;
         active?: boolean;
@@ -46,6 +52,7 @@
             currentTitle: string;
             session: SessionResponse;
         }) => void;
+        onArchive?: (info: { sessionId: string; session: SessionResponse }) => void;
     } = $props();
 
     let title = $derived(displayTitle(session));
@@ -70,6 +77,18 @@
     // Unified workspaces: every session selects a workspace, including the
     // built-in `default` ("No workspace") which cannot be renamed or removed.
     let isDefaultWorkspace = $derived(!workspaceId || isDefaultWorkspaceId(workspaceId));
+    let archived = $derived(isSessionArchived(session));
+    // Seen/checked: daemon flips ready -> completed once the successful
+    // completion is acknowledged via inbox read_sequence. Offer Done only then.
+    let showDone = $derived(session.status === "completed" && !archived);
+    // Working = actively executing; Ready covers both ready (unacknowledged
+    // finish) and completed (acknowledged) per daemon SessionStatus.
+    let isWorking = $derived(
+        session.status === "queued" ||
+            session.status === "running" ||
+            session.status === "awaiting_children",
+    );
+    let isReady = $derived(session.status === "ready" || session.status === "completed");
 </script>
 
 <ContextMenu.Root>
@@ -103,9 +122,37 @@
                 >
                     {workspace}
                 </span>
-                {#if lastInteractionLabel}
-                    <span class="ms-auto shrink-0 text-xs opacity-70" title={lastInteractionFull}>
-                        {lastInteractionLabel}
+                {#if isWorking || isReady || showDone}
+                    <span class="ms-auto flex shrink-0 items-center gap-1.5">
+                        {#if isWorking}
+                            <Badge
+                                class="border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                            >
+                                <CircleNotchIcon data-icon="inline-start" class="animate-spin" />
+                                Working
+                            </Badge>
+                        {:else if isReady}
+                            <Badge
+                                class="border-green-500/30 bg-green-500/10 text-green-600 dark:text-green-400"
+                            >
+                                <CheckIcon data-icon="inline-start" />
+                                Ready
+                            </Badge>
+                        {/if}
+                        {#if showDone}
+                            <Button
+                                variant="outline"
+                                size="xs"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    onArchive?.({ sessionId: session.id, session });
+                                }}
+                            >
+                                <CheckIcon />
+                                Done
+                            </Button>
+                        {/if}
                     </span>
                 {/if}
             </div>
@@ -120,7 +167,8 @@
             <span
                 class="line-clamp-2 w-full max-w-full min-w-0 overflow-hidden text-xs break-words whitespace-normal opacity-70"
             >
-                {model} · seq {session.last_event_sequence}
+                {model} · seq {session.last_event_sequence}{#if lastInteractionLabel}
+                    · <span title={lastInteractionFull}>{lastInteractionLabel}</span>{/if}
             </span>
         </button>
     </ContextMenu.Trigger>

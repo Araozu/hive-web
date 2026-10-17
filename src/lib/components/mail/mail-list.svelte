@@ -31,6 +31,7 @@
         onRetry,
         onRenameWorkspace,
         onRenameSession,
+        onArchive,
     }: {
         title: string;
         sessions: SessionResponse[];
@@ -51,6 +52,7 @@
             currentTitle: string;
             session: SessionResponse;
         }) => void;
+        onArchive?: (info: { sessionId: string; session: SessionResponse }) => void;
     } = $props();
 
     let query = $state("");
@@ -124,6 +126,7 @@
                         {onSelect}
                         {onRenameWorkspace}
                         {onRenameSession}
+                        {onArchive}
                     />
                 {:else}
                     {#if !error}

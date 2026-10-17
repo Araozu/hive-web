@@ -4437,6 +4437,7 @@
         "/v1/sessions/{session_id}/inbox": {
             "post": {
                 "tags": ["chat"],
+                "summary": "Update shared organization/read state. Marking a successful completion read\nclears the derived session status from ready to completed; GET never marks read.",
                 "operationId": "update_session_inbox",
                 "parameters": [
                     {
@@ -7687,6 +7688,11 @@
                                 "revision": { "type": "integer", "format": "int64", "minimum": 0 },
                                 "settings": { "$ref": "#/components/schemas/GenerationSettings" },
                                 "spec": { "$ref": "#/components/schemas/SessionSpec" },
+                                "status": {
+                                    "$ref": "#/components/schemas/SessionStatus",
+                                    "description": "Derived execution/review status. Ready means successfully finished but not\nyet acknowledged via the shared inbox read_sequence. GET does not mark read.",
+                                    "readOnly": true
+                                },
                                 "title": { "type": ["string", "null"] },
                                 "workspace_id": { "type": "string" }
                             }
@@ -8158,6 +8164,11 @@
                     "revision": { "type": "integer", "format": "int64", "minimum": 0 },
                     "settings": { "$ref": "#/components/schemas/GenerationSettings" },
                     "spec": { "$ref": "#/components/schemas/SessionSpec" },
+                    "status": {
+                        "$ref": "#/components/schemas/SessionStatus",
+                        "description": "Derived execution/review status. Ready means successfully finished but not\nyet acknowledged via the shared inbox read_sequence. GET does not mark read.",
+                        "readOnly": true
+                    },
                     "title": { "type": ["string", "null"] },
                     "workspace_id": { "type": "string" }
                 }
@@ -8188,6 +8199,21 @@
                     "workspace": { "$ref": "#/components/schemas/WorkspaceSelection" }
                 },
                 "additionalProperties": false
+            },
+            "SessionStatus": {
+                "type": "string",
+                "description": "Daemon-derived execution/review status, independent of inbox organization flags.\nReady means successful completion newer than the shared inbox read cursor.",
+                "enum": [
+                    "idle",
+                    "queued",
+                    "running",
+                    "paused",
+                    "awaiting_children",
+                    "ready",
+                    "completed",
+                    "failed",
+                    "stopped"
+                ]
             },
             "SetApiKeyRequest": {
                 "type": "object",
@@ -8376,6 +8402,7 @@
                     "read_sequence": {
                         "type": ["integer", "null"],
                         "format": "int64",
+                        "description": "Mark events through this sequence as reviewed. Acknowledging a successful\nturn's completion changes the derived session status from ready to completed.\nUse the last_event_sequence from the session actually displayed to the user.",
                         "minimum": 0
                     },
                     "starred": { "type": ["boolean", "null"] },

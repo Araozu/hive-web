@@ -9,7 +9,7 @@
     import { createMutation, createQuery, useQueryClient } from "@tanstack/svelte-query";
     import { sessionsQueryOptions } from "#lib/api/sessions.js";
     import { sessionWorkspacesQueryOptions } from "#lib/api/workspaces.js";
-    import { renameSession, renameWorkspace } from "#lib/api/client.js";
+    import { renameSession, renameWorkspace, updateSessionInbox } from "#lib/api/client.js";
     import type { SessionResponse } from "#lib/api/types.js";
     import { sessionsForFolder, sessionKey, sessionWorkspaceId } from "#lib/hive/threads.js";
     import type { Mail } from "#lib/components/mail/data.js";
@@ -47,11 +47,11 @@
 
     // Proper workspace names come from WorkspaceResponse.name (core rename API).
     // Every session selects a workspace, including the built-in `default`.
-     let workspaceIds = $derived(
-         allSessions
-             .map((session) => sessionWorkspaceId(session))
-             .filter((id): id is string => Boolean(id)),
-     );
+    let workspaceIds = $derived(
+        allSessions
+            .map((session) => sessionWorkspaceId(session))
+            .filter((id): id is string => Boolean(id)),
+    );
     const workspacesQuery = createQuery(() => sessionWorkspacesQueryOptions(workspaceIds));
     let workspacesById = $derived(workspacesQuery.data ?? null);
 
@@ -66,6 +66,17 @@
     const renameSessionMutation = createMutation(() => ({
         mutationFn: ({ sessionId, title }: { sessionId: string; title: string }) =>
             renameSession(sessionId, { command_id: crypto.randomUUID(), title }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["daemon", "sessions"] });
+        },
+    }));
+
+    const archiveSessionMutation = createMutation(() => ({
+        mutationFn: ({ sessionId }: { sessionId: string }) =>
+            updateSessionInbox(sessionId, {
+                command_id: crypto.randomUUID(),
+                archived: true,
+            }),
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: ["daemon", "sessions"] });
         },
@@ -132,6 +143,17 @@
             },
         );
     }
+
+    function handleArchiveSession(info: { sessionId: string }) {
+        // Settle via daemon archived flag: POST /v1/sessions/{session_id}/inbox.
+        // Inbox shows only active (!archived && !trashed); archived live in Junk.
+        archiveSessionMutation.mutate(
+            { sessionId: info.sessionId },
+            {
+                onError: (error) => window.alert(error.message),
+            },
+        );
+    }
 </script>
 
 <Sidebar.Provider style="--sidebar-width: 350px;">
@@ -150,6 +172,7 @@
                 onRetry={() => void sessionsQuery.refetch()}
                 onRenameWorkspace={handleRenameWorkspace}
                 onRenameSession={handleRenameSession}
+                onArchive={handleArchiveSession}
             />
         </Sidebar.Root>
     </AppSidebar>

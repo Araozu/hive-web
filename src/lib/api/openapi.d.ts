@@ -943,6 +943,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Update shared organization/read state. Marking a successful completion read
+         *     clears the derived session status from ready to completed; GET never marks read.
+         */
         post: operations["update_session_inbox"];
         delete?: never;
         options?: never;
@@ -1935,6 +1939,11 @@ export interface components {
                 revision: number;
                 settings?: components["schemas"]["GenerationSettings"];
                 spec: components["schemas"]["SessionSpec"];
+                /**
+                 * @description Derived execution/review status. Ready means successfully finished but not
+                 *     yet acknowledged via the shared inbox read_sequence. GET does not mark read.
+                 */
+                readonly status?: components["schemas"]["SessionStatus"];
                 title?: string | null;
                 workspace_id: string;
             }[];
@@ -2172,6 +2181,11 @@ export interface components {
             revision: number;
             settings?: components["schemas"]["GenerationSettings"];
             spec: components["schemas"]["SessionSpec"];
+            /**
+             * @description Derived execution/review status. Ready means successfully finished but not
+             *     yet acknowledged via the shared inbox read_sequence. GET does not mark read.
+             */
+            readonly status?: components["schemas"]["SessionStatus"];
             title?: string | null;
             workspace_id: string;
         };
@@ -2185,6 +2199,21 @@ export interface components {
             title?: string | null;
             workspace: components["schemas"]["WorkspaceSelection"];
         };
+        /**
+         * @description Daemon-derived execution/review status, independent of inbox organization flags.
+         *     Ready means successful completion newer than the shared inbox read cursor.
+         * @enum {string}
+         */
+        SessionStatus:
+            | "idle"
+            | "queued"
+            | "running"
+            | "paused"
+            | "awaiting_children"
+            | "ready"
+            | "completed"
+            | "failed"
+            | "stopped";
         SetApiKeyRequest: {
             api_key: string;
         };
@@ -2290,7 +2319,12 @@ export interface components {
             command_id: string;
             /** @description Import old client state once without overwriting an existing daemon value. */
             only_if_unset?: boolean;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Mark events through this sequence as reviewed. Acknowledging a successful
+             *     turn's completion changes the derived session status from ready to completed.
+             *     Use the last_event_sequence from the session actually displayed to the user.
+             */
             read_sequence?: number | null;
             starred?: boolean | null;
             trashed?: boolean | null;

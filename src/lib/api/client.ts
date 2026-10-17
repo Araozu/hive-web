@@ -6,6 +6,7 @@ import type {
     RenameWorkspaceRequest,
     SessionPage,
     SessionResponse,
+    UpdateSessionInboxRequest,
     WorkspaceResponse,
 } from "./types.js";
 
@@ -106,6 +107,22 @@ export async function renameSession(
     signal?: AbortSignal,
 ): Promise<CommandReceipt> {
     const { data, error, response } = await daemonClient.PATCH("/v1/sessions/{session_id}", {
+        params: { path: { session_id: id } },
+        body: request,
+        signal,
+    });
+    if (data) return data;
+    throw new DaemonError(daemonErrorMessage(response.status, error), response.status);
+}
+
+/** Update inbox organization (settle = archived). Core accepts partial
+ * UpdateSessionInboxRequest via POST /v1/sessions/{session_id}/inbox. */
+export async function updateSessionInbox(
+    id: string,
+    request: UpdateSessionInboxRequest,
+    signal?: AbortSignal,
+): Promise<CommandReceipt> {
+    const { data, error, response } = await daemonClient.POST("/v1/sessions/{session_id}/inbox", {
         params: { path: { session_id: id } },
         body: request,
         signal,
